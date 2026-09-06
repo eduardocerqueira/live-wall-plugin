@@ -6,11 +6,15 @@ proposing changes.
 
 ## The bar
 
-> **Every pull request must have all tests passing and a CVE scan reporting zero known
-> vulnerabilities.**
+> **Every pull request must have all tests passing, and zero known vulnerabilities in anything
+> this plugin ships.**
 
-Both are enforced by CI and neither is negotiable. The details, including what to do when a
-vulnerability has no fix yet, are in [quality-bar.md](quality-bar.md).
+Both are enforced by CI and neither is negotiable.
+
+The security scan is deliberately two scans: a blocking one over what the `.hpi` actually contains,
+where the bar is zero, and a loud but non-blocking one over Jenkins core and everything it brings
+with it, which a plugin does not ship and cannot fix. [quality-bar.md](quality-bar.md) explains why,
+and what to do about each.
 
 ## Reporting a bug
 

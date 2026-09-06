@@ -133,7 +133,7 @@ Three pieces of that browser code are worth knowing about, all in
 | [Building, testing, installing](docs/building.md) | Development loop, running the tests, installing into your own Jenkins |
 | [Configuration](docs/configuration.md) | Every setting, URL parameters, JCasC, the JSON endpoint |
 | [Contributing](docs/CONTRIBUTING.md) | Issues, pull requests, adding palettes and shapes |
-| [The bar](docs/quality-bar.md) | All tests passing, zero known CVEs — for every pull request |
+| [The bar](docs/quality-bar.md) | All tests passing and zero shipped CVEs, for every pull request — and why the security scan is two scans |
 
 ---
 
@@ -142,9 +142,10 @@ Three pieces of that browser code are worth knowing about, all in
 Issues and pull requests are welcome. Read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) first —
 especially the short list of things this plugin deliberately does not do.
 
-Every pull request must have **all tests passing** and a **CVE scan reporting zero known
-vulnerabilities**. Both are enforced by CI; the security scan also runs every Sunday morning,
-because the code stops changing but the vulnerability database does not.
+Every pull request must have **all tests passing** and **zero known vulnerabilities in anything the
+plugin ships**. Both are enforced by CI, and the security scan also runs every Sunday morning,
+because the code stops changing but the vulnerability database does not. See
+[the bar](docs/quality-bar.md) for why the security scan is two scans rather than one.
 
 ---
 

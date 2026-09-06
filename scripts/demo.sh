@@ -140,7 +140,7 @@ $RUNTIME pull "$IMAGE"
 
 step "Baking the plugin into a throwaway image"
 CONTEXT="$(mktemp -d)"
-trap 'rm -rf "$CONTEXT"' EXIT
+trap 'rm -rf "$CONTEXT" "${COOKIES:-}"' EXIT
 cp "$HPI" "$CONTEXT/live-wall.hpi"
 cp -R "${REPO_ROOT}/scripts/demo-init" "$CONTEXT/init.groovy.d"
 cp "${REPO_ROOT}/scripts/demo.Dockerfile" "$CONTEXT/Dockerfile"
@@ -172,19 +172,39 @@ info "Live Wall $VERSION is installed"
 
 # ------------------------------------------------------------------ jenkins api helpers
 
-# CSRF is on even with security off, so every POST carries a crumb.
-CRUMB="$(curl -s "${BASE}/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,%22:%22,//crumb)")"
+# CSRF is on even with security off, so every POST carries a crumb. The crumb is bound to the HTTP
+# session, so the request that fetches it and every request that uses it must share a cookie jar --
+# without that, Jenkins answers 403 to everything and the script cheerfully creates nothing.
+COOKIES="$(mktemp)"
+CRUMB="$(curl -s -c "$COOKIES" -b "$COOKIES" "${BASE}/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,%22:%22,//crumb)")"
 [ -n "$CRUMB" ] || die "could not fetch a CSRF crumb from $BASE"
+
+api() { # api <path> [curl args...] -- a GET that keeps the session
+    local path="$1"; shift
+    curl -s -c "$COOKIES" -b "$COOKIES" "${BASE}${path}" "$@"
+}
 
 post() { # post <path> [curl args...]
     local path="$1"; shift
-    curl -s -o /dev/null -w '%{http_code}' -X POST -H "$CRUMB" "${BASE}${path}" "$@"
+    curl -s -o /dev/null -w '%{http_code}' -X POST \
+        -c "$COOKIES" -b "$COOKIES" -H "$CRUMB" "${BASE}${path}" "$@"
 }
 
-create_job() { # create_job <name> <config.xml on stdin>
-    local name="$1" code
-    code="$(post "/createItem?name=${name}" -H 'Content-Type: application/xml' --data-binary @-)"
-    [ "$code" = "200" ] || warn "creating $name returned HTTP $code"
+CREATED_OK=0
+CREATE_FAILURES=0
+LAST_CREATE_ERROR=""
+
+# Note the config arrives as an argument, not on a pipe: `job_config ... | create_job ...` would
+# run create_job in a subshell, where the counters below increment and are then thrown away.
+create_job() { # create_job <name> <config.xml>
+    local name="$1" config="$2" code
+    code="$(post "/createItem?name=${name}" -H 'Content-Type: application/xml' --data-binary @- <<<"$config")"
+    if [ "$code" = "200" ]; then
+        CREATED_OK=$((CREATED_OK + 1))
+    else
+        CREATE_FAILURES=$((CREATE_FAILURES + 1))
+        LAST_CREATE_ERROR="$name returned HTTP $code"
+    fi
 }
 
 # Freestyle jobs only, because the base Jenkins image ships no plugins and core alone can produce
@@ -201,7 +221,7 @@ job_config() { # job_config <command> <unstable-exit-code|-> <timer-spec|->
 wait_for_build_start() { # wait_for_build_start <name>
     local name="$1"
     for _ in $(seq 1 60); do
-        if [ "$(curl -s "${BASE}/job/${name}/lastBuild/api/xml?xpath=/*/building" || true)" = "<building>true</building>" ]; then
+        if [ "$(api "/job/${name}/lastBuild/api/xml?xpath=/*/building" || true)" = "<building>true</building>" ]; then
             return 0
         fi
         sleep 1
@@ -215,7 +235,10 @@ SHORT_WORDS=(drools horizon kogito quarkus nix vault atlas pulse forge grid nova
 LONG_WORDS=(ci cd infra platform decision control tower sidecar release scan sync mirror agent registry dashboard integration nightly canary staging pipeline builder deploy gateway service worker bundle snapshot upstream downstream)
 
 declare -A USED_NAMES=()
+GENERATED_NAME=""
 
+# Sets GENERATED_NAME rather than echoing, so that USED_NAMES survives -- a command substitution
+# would run this in a subshell and lose the record of what has already been handed out.
 random_name() {
     local name parts count i
     while :; do
@@ -234,14 +257,14 @@ random_name() {
         fi
         if [ -z "${USED_NAMES[$name]:-}" ]; then
             USED_NAMES[$name]=1
-            printf '%s' "$name"
+            GENERATED_NAME="$name"
             return
         fi
-        # Collided: fall through and try again, adding a suffix after a few attempts.
+        # Collided: try the same name with a suffix, then give up and draw a fresh one.
         name="${name}-$((RANDOM % 900 + 100))"
         if [ -z "${USED_NAMES[$name]:-}" ]; then
             USED_NAMES[$name]=1
-            printf '%s' "$name"
+            GENERATED_NAME="$name"
             return
         fi
     done
@@ -274,7 +297,7 @@ declare -a DISABLE_JOBS=()
 
 created=0
 for ((n = 0; n < STATIC; n++)); do
-    name="$(random_name)"
+    random_name; name="$GENERATED_NAME"
     roll=$((RANDOM % 100))
 
     if   [ "$roll" -lt 55 ]; then status=success
@@ -286,12 +309,12 @@ for ((n = 0; n < STATIC; n++)); do
     fi
 
     case "$status" in
-        success)  job_config "echo built ok; exit 0" - -            | create_job "$name"; BUILD_JOBS+=("$name") ;;
-        failure)  job_config "echo something broke; exit 1" - -     | create_job "$name"; BUILD_JOBS+=("$name") ;;
-        unstable) job_config "echo tests failed; exit 3" 3 -        | create_job "$name"; BUILD_JOBS+=("$name") ;;
-        aborted)  job_config "sleep 300" - -                        | create_job "$name"; ABORT_JOBS+=("$name") ;;
-        notbuilt) job_config "exit 0" - -                           | create_job "$name" ;;
-        disabled) job_config "exit 0" - -                           | create_job "$name"; DISABLE_JOBS+=("$name") ;;
+        success)  create_job "$name" "$(job_config "echo built ok; exit 0" - -)";        BUILD_JOBS+=("$name") ;;
+        failure)  create_job "$name" "$(job_config "echo something broke; exit 1" - -)"; BUILD_JOBS+=("$name") ;;
+        unstable) create_job "$name" "$(job_config "echo tests failed; exit 3" 3 -)";    BUILD_JOBS+=("$name") ;;
+        aborted)  create_job "$name" "$(job_config "sleep 300" - -)";                    ABORT_JOBS+=("$name") ;;
+        notbuilt) create_job "$name" "$(job_config "exit 0" - -)" ;;
+        disabled) create_job "$name" "$(job_config "exit 0" - -)";                       DISABLE_JOBS+=("$name") ;;
     esac
 
     created=$((created + 1))
@@ -299,16 +322,27 @@ for ((n = 0; n < STATIC; n++)); do
 done
 
 for ((n = 0; n < LIVE; n++)); do
-    name="$(random_name)"
+    random_name; name="$GENERATED_NAME"
     # A random walk between green, red and unstable, so the wall changes colour on its own.
     # The shebang matters: Jenkins runs a shell step with /bin/sh, where RANDOM is just an unset
     # variable that evaluates to zero, and every one of these jobs would take the same branch.
-    job_config "$LIVE_JOB_SCRIPT" 3 "H/3 * * * *" | create_job "$name"
+    create_job "$name" "$(job_config "$LIVE_JOB_SCRIPT" 3 "H/3 * * * *")"
     BUILD_JOBS+=("$name")
     created=$((created + 1))
     printf '\r    created %d/%d' "$created" "$JOBS"
 done
 printf '\n'
+
+# Reporting success after creating nothing is worse than failing, so check rather than assume.
+if [ "$CREATED_OK" -eq 0 ]; then
+    die "not one job could be created ($LAST_CREATE_ERROR).
+       Jenkins is up but rejecting the API. If that is a 403, the CSRF crumb was not accepted;
+       check '$RUNTIME logs $CONTAINER' and see docs/demo.md."
+fi
+if [ "$CREATE_FAILURES" -gt 0 ]; then
+    warn "$CREATE_FAILURES of $JOBS jobs could not be created (last: $LAST_CREATE_ERROR)"
+fi
+info "created $CREATED_OK jobs"
 
 step "Building them"
 for name in "${BUILD_JOBS[@]}"; do

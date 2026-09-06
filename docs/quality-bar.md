@@ -2,37 +2,88 @@
 
 Short version, and it is not negotiable for anything merged into `main`:
 
-> **Every pull request must have all tests passing and a CVE scan reporting zero known
-> vulnerabilities.**
+> **Every pull request must have all tests passing, and zero known vulnerabilities in anything this
+> plugin ships.**
 
-Both are enforced automatically. A pull request that fails either one does not merge.
+Both are enforced by CI. A pull request that fails either does not merge.
 
 | Gate | Workflow | Runs on | Passing means |
 | --- | --- | --- | --- |
-| Tests | [`ci.yml`](../.github/workflows/ci.yml) | Every PR, every push to `main`, JDK 17 and 21 | `mvn clean verify` is green on both JDKs — unit tests, the Jenkins harness tests, Jelly validation, SpotBugs and formatting |
-| Security | [`cve-scan.yml`](../.github/workflows/cve-scan.yml) | Every PR, every push to `main`, **and every Sunday at 06:00 UTC** | Trivy finds **zero** known vulnerabilities across the resolved dependency tree, at every severity from `UNKNOWN` to `CRITICAL` |
+| Tests | [`ci.yml`](../.github/workflows/ci.yml) | Every PR, every push to `main`, JDK 17 and 21 | `mvn clean verify` is green on both — unit tests, Jenkins harness tests, Jelly validation, SpotBugs, formatting |
+| Security | [`cve-scan.yml`](../.github/workflows/cve-scan.yml) | Every PR, every push to `main`, **and every Sunday at 06:00 UTC** | Zero known vulnerabilities, at every severity from `UNKNOWN` to `CRITICAL`, in everything the `.hpi` contains |
+
+## Why the security scan is two scans
+
+A Jenkins plugin has two very different dependency sets, and reporting one number across both
+produces something nobody can act on.
+
+### Shipped — blocking, and the bar is zero
+
+Compile and runtime scope: everything that ends up inside the `.hpi`. Today that is one file,
+`WEB-INF/lib/live-wall.jar`, containing this plugin's own classes and nothing else — the plugin has
+no third-party dependencies at all.
+
+So this gate is green, and it will stay green until somebody adds a library. That is exactly when
+you want it to start shouting. **This is what "Live Wall has no known vulnerabilities" means**, and
+it is a claim this repository can actually stand behind.
+
+### Full tree — reported loudly, but not blocking
+
+The above plus `provided` and `test` scope: Jenkins core, and the libraries core brings with it —
+Jetty, Spring, and friends. At the current baseline that is 133 components carrying **38 known
+vulnerabilities** (1 critical, 14 high, 19 medium, 4 low), 17 of them in `jenkins-core` itself.
+
+None of that is shipped by this plugin. `provided` means precisely "the controller supplies this at
+runtime": your Jenkins already has these libraries, at whatever versions your Jenkins ships, whether
+or not Live Wall is installed. Nothing in this repository can change that. It is fixed by an
+administrator upgrading Jenkins.
+
+Blocking on it would therefore be a permanently red gate that no pull request could turn green, and
+the only way through would be to bulk-add ignore entries — which is how a security gate becomes
+decoration. So it is reported in full on every run, summarised in the job output, uploaded to code
+scanning, and raised as an issue by the weekly run. It is never hidden. It just does not block a
+change it has nothing to do with.
+
+It is still a real signal: it says *the Jenkins baseline in `pom.xml` is getting old*. Moving
+`jenkins.baseline` from `2.516` to `2.555` takes those 38 findings down to 18 and removes the
+critical one. That has not been done because a lower baseline installs on more controllers, and the
+findings belong to the controller either way — but it is the lever, and it is worth pulling when the
+compatibility cost is acceptable.
 
 ## Why the scan also runs on a schedule
 
 The code stops changing; the vulnerability database does not. A dependency that was clean when a
-release was cut can be a published CVE three weeks later, with nobody touching the repository. The
-Sunday run catches that, and opens (or comments on) an issue labelled `security` so a red workflow
+release was cut can be a published CVE three weeks later with nobody touching the repository. The
+Sunday run catches that and opens (or comments on) an issue labelled `security`, so a red workflow
 cannot quietly scroll past.
 
-## Zero, and what to do when zero is not reachable
+## A scan that examines nothing must fail
 
-Zero is the target because the alternative — "no *high* severity vulnerabilities" — is a number
-that only ever goes up, and nobody notices when it does.
+The first version of this workflow pointed Trivy at the working tree with `trivy fs .`. It reported
+a clean bill of health — and it was scanning nothing at all. `trivy fs` reads manifests, this
+project's `pom.xml` declares no dependencies of its own, and Trivy does not analyse bare `.jar`
+files in that mode. A green tick, zero findings, zero coverage.
 
-Almost everything this plugin depends on comes from Jenkins core, which means a finding is usually
-fixed by moving the baseline in `pom.xml` rather than by changing any code here. Do that first.
+The fix, and the general rule worth keeping:
 
-When there is genuinely no fixed version yet, add an entry to [`.trivyignore`](../.trivyignore).
-An entry is only acceptable when all three of these are true, and it has to say so:
+- **Maven resolves the tree, not the scanner.** Both scans run against a CycloneDX SBOM generated by
+  `cyclonedx-maven-plugin`, so the coordinates are exact and the scopes are explicit.
+- **The workflow asserts it looked at something.** Both SBOMs must exist and name this plugin as
+  their root component, and the full tree must contain at least 50 components. If dependency
+  resolution silently degrades, the job fails instead of passing.
 
-1. The vulnerability is not reachable from this plugin, or upstream has no fix available.
+If you change how the scan works, keep those guards. A security gate that cannot fail is worse than
+no gate, because it is believed.
+
+## When zero is not reachable
+
+If something the plugin genuinely ships ever has a vulnerability with no fix available, add an entry
+to [`.trivyignore`](../.trivyignore). It is only acceptable when all three of these are true, and it
+has to say so:
+
+1. The vulnerability is not reachable from this plugin, or upstream has no fix.
 2. There is a link to the upstream issue tracking the fix.
-3. There is an expiry date, so the exception gets revisited instead of forgotten.
+3. There is an expiry date, so the exception is revisited rather than forgotten.
 
 ```
 CVE-2026-12345 exp:2026-12-01
@@ -40,15 +91,25 @@ CVE-2026-12345 exp:2026-12-01
 # upstream: https://github.com/example/lib/issues/999
 ```
 
-An expired entry fails the scan again, which is the point.
+An expired entry fails the scan again, which is the point. The file should normally be empty, and
+it is not the place to silence the full-tree report.
 
 ## Running both gates before you push
 
 ```bash
 mvn clean verify          # the test gate
 
-# the security gate, with Trivy installed locally
+# the security gate
 mvn -DskipTests package
-mvn dependency:copy-dependencies -DincludeScope=test -DoutputDirectory=target/scan
-trivy fs --scanners vuln --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --exit-code 1 .
+mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeBom \
+    -DincludeProvidedScope=false -DincludeTestScope=false \
+    -DoutputFormat=json -DoutputName=sbom-shipped
+trivy sbom --scanners vuln --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+    --exit-code 1 target/sbom-shipped.json
+
+# and the full picture, for information
+mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeBom \
+    -DincludeProvidedScope=true -DincludeTestScope=true \
+    -DoutputFormat=json -DoutputName=sbom-full
+trivy sbom --scanners vuln --exit-code 0 target/sbom-full.json
 ```
