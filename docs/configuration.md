@@ -47,9 +47,19 @@ Only show jobs matching:   ci-*
 But never these:           *-sandbox
 ```
 
-The view still *contains* every job you ticked; the filter decides which of them reach the wall. So
-one view can feed several walls with different URLs, and the include regex from a plain list view is
-still there under **Regular expression filter** if you already depend on it.
+The view still *contains* every job you ticked; the filter decides which of them reach the wall.
+Both fields also work as [URL parameters](#url-parameters), which is what lets one view feed several
+screens: the office TV shows everything, the team's monitor adds `?exclude=dev-*`, and nobody has to
+keep three near-identical views from drifting apart.
+
+```
+…/view/pipelines/wall?exclude=dev-*
+…/view/pipelines/wall?include=ci-*&sort=status
+```
+
+Each override stands on its own — an `exclude` on the URL keeps whatever include list the view has
+saved — and neither can reveal a job the viewer could not already see. The include regex from a
+plain list view is still there under **Regular expression filter** if you already depend on it.
 
 ## Look
 
@@ -228,6 +238,8 @@ comfortably type on. They do not change the saved configuration.
 | `packing` | `interlock` `grid` |
 | `sizing` | `fit` `scroll` |
 | `sort` | `running` `status` `success` `name` `recent` `view-order` |
+| `include` | Name patterns, as in the filter above |
+| `exclude` | Name patterns to drop, e.g. `dev-*` |
 | `gap` | Pixels between tiles |
 | `seam` | Pixels of separator inside each tile |
 | `refresh` | Seconds |

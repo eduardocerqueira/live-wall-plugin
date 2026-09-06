@@ -515,8 +515,19 @@ public class LiveWallView extends ListView {
      */
     @NonNull
     public List<Tile> getTiles(@NonNull SortBy sort) {
+        return getTiles(sort, nameFilter());
+    }
+
+    /**
+     * Snapshots the wall in a given order, keeping only the jobs a filter accepts.
+     *
+     * <p>Order and filter are parameters rather than always the saved ones so that one view can
+     * feed several screens: the office TV shows everything, the team's monitor adds
+     * {@code ?exclude=dev-*}, and nobody has to maintain three views that drift apart.
+     */
+    @NonNull
+    public List<Tile> getTiles(@NonNull SortBy sort, @NonNull NameFilter filter) {
         StatusScope scope = getStatusScope();
-        NameFilter filter = nameFilter();
         Set<String> queuedJobs = queuedJobNames();
         List<Tile> tiles = new ArrayList<>();
 
@@ -607,11 +618,23 @@ public class LiveWallView extends ListView {
      *     the view's own setting.
      */
     @GET
-    public void doWallData(StaplerResponse2 rsp, @QueryParameter String sortBy) throws IOException {
+    public void doWallData(
+            StaplerResponse2 rsp,
+            @QueryParameter String sortBy,
+            @QueryParameter String include,
+            @QueryParameter String exclude)
+            throws IOException {
         checkPermission(View.READ);
 
+        // Each override stands on its own, so ?exclude=dev-* narrows a wall without discarding
+        // whatever include list the view already has. Narrowing only: these can never reveal a job
+        // the caller could not already see.
+        NameFilter filter = include == null && exclude == null
+                ? nameFilter()
+                : NameFilter.of(include != null ? include : includeNames, exclude != null ? exclude : excludeNames);
+
         JSONArray array = new JSONArray();
-        for (Tile tile : getTiles(WallOption.parse(SortBy.class, sortBy, getSortBy()))) {
+        for (Tile tile : getTiles(WallOption.parse(SortBy.class, sortBy, getSortBy()), filter)) {
             array.add(tile.toJson());
         }
         JSONObject payload = new JSONObject();

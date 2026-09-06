@@ -101,6 +101,8 @@
         packing: "packing",
         sort: "sortBy",
         sortby: "sortBy",
+        include: "include",
+        exclude: "exclude",
         header: "header",
         burnin: "burnIn",
     };
@@ -391,11 +393,19 @@
 
     /* Ordering happens on the server, so an override rides along with the request. */
     Wall.prototype.currentDataUrl = function () {
-        var sort = this.root.dataset.sortBy;
-        if (!sort) {
-            return this.dataUrl;
-        }
-        return this.dataUrl + (this.dataUrl.indexOf("?") >= 0 ? "&" : "?") + "sortBy=" + encodeURIComponent(sort);
+        var url = this.dataUrl;
+        var root = this.root;
+        var separator = url.indexOf("?") >= 0 ? "&" : "?";
+
+        ["sortBy", "include", "exclude"].forEach(function (key) {
+            var value = root.dataset[key];
+            if (value === undefined || value === null || value === "") {
+                return;
+            }
+            url += separator + key + "=" + encodeURIComponent(value);
+            separator = "&";
+        });
+        return url;
     };
 
     /* ------------------------------------------------------------------ rendering */

@@ -232,6 +232,31 @@ class LiveWallViewTest {
     }
 
     @Test
+    void theWallDataEndpointCanBeAskedToExcludeJobs(JenkinsRule r) throws Exception {
+        r.createFreeStyleProject("ci-decision");
+        r.createFreeStyleProject("dev-scratch");
+        r.createFreeStyleProject("dev-spike");
+
+        LiveWallView view = createView(r, "wall");
+        view.setIncludeRegex(".*");
+
+        assertEquals(3, labelsFrom(r, "view/wall/wallData").size());
+        assertEquals(
+                List.of("ci-decision"),
+                labelsFrom(r, "view/wall/wallData?exclude=dev-*"),
+                "one screen can drop the development jobs without a view of its own");
+        assertNull(view.getExcludeNames(), "and the view itself is unchanged");
+
+        // Each override stands alone: an exclude on the URL keeps the view's own include list.
+        view.setIncludeNames("dev-*");
+        assertEquals(2, labelsFrom(r, "view/wall/wallData").size());
+        assertEquals(
+                List.of("dev-spike"),
+                labelsFrom(r, "view/wall/wallData?exclude=*scratch"),
+                "the saved include still applies");
+    }
+
+    @Test
     void nameRewritingStripsTheNoiseAndNeverBlanksATile(JenkinsRule r) throws Exception {
         r.createFreeStyleProject("ci-decision-control-pipeline");
 
