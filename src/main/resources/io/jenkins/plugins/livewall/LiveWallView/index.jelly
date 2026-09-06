@@ -13,29 +13,70 @@
         </button>
         <a class="jenkins-button" href="${rootURL}/${it.viewUrl}wall">${%Open kiosk page}</a>
 
-        <div class="jenkins-select">
-          <select class="jenkins-select__input" data-lw-preview="palette" aria-label="${%Palette}">
-            <j:forEach var="option" items="${it.paletteOptions}">
-              <option value="${option.id}">${option.displayName}</option>
-            </j:forEach>
-          </select>
-        </div>
+        <label class="lw-field">
+          <span class="lw-field__label">${%Palette}</span>
+          <div class="jenkins-select">
+            <select class="jenkins-select__input" data-lw-preview="palette">
+              <j:forEach var="option" items="${it.paletteOptions}">
+                <option value="${option.id}">${option.shortName}</option>
+              </j:forEach>
+            </select>
+          </div>
+        </label>
 
-        <div class="jenkins-select">
-          <select class="jenkins-select__input" data-lw-preview="shape" aria-label="${%Shape}">
-            <j:forEach var="option" items="${it.shapeOptions}">
-              <option value="${option.id}">${option.displayName}</option>
-            </j:forEach>
-          </select>
-        </div>
+        <label class="lw-field">
+          <span class="lw-field__label">${%Shape}</span>
+          <div class="jenkins-select">
+            <select class="jenkins-select__input" data-lw-preview="shape">
+              <j:forEach var="option" items="${it.shapeOptions}">
+                <option value="${option.id}">${option.shortName}</option>
+              </j:forEach>
+            </select>
+          </div>
+        </label>
 
-        <div class="jenkins-select">
-          <select class="jenkins-select__input" data-lw-preview="animation" aria-label="${%Animation}">
-            <j:forEach var="option" items="${it.animationOptions}">
-              <option value="${option.id}">${option.displayName}</option>
-            </j:forEach>
-          </select>
-        </div>
+        <label class="lw-field">
+          <span class="lw-field__label">${%Animation}</span>
+          <div class="jenkins-select">
+            <select class="jenkins-select__input" data-lw-preview="animation">
+              <j:forEach var="option" items="${it.animationOptions}">
+                <option value="${option.id}">${option.shortName}</option>
+              </j:forEach>
+            </select>
+          </div>
+        </label>
+
+        <label class="lw-field">
+          <span class="lw-field__label">${%Packing}</span>
+          <div class="jenkins-select">
+            <select class="jenkins-select__input" data-lw-preview="packing">
+              <j:forEach var="option" items="${it.packingOptions}">
+                <option value="${option.id}">${option.shortName}</option>
+              </j:forEach>
+            </select>
+          </div>
+        </label>
+
+        <label class="lw-field">
+          <span class="lw-field__label">${%Order}</span>
+          <div class="jenkins-select">
+            <select class="jenkins-select__input" data-lw-preview="sortBy">
+              <j:forEach var="option" items="${it.sortByOptions}">
+                <option value="${option.id}">${option.shortName}</option>
+              </j:forEach>
+            </select>
+          </div>
+        </label>
+
+        <label class="lw-field lw-field--slider">
+          <span class="lw-field__label">${%Gap} <output data-lw-output="gap">0</output>px</span>
+          <input type="range" min="0" max="48" step="1" data-lw-preview="gap" />
+        </label>
+
+        <label class="lw-field lw-field--slider">
+          <span class="lw-field__label">${%Separator} <output data-lw-output="seam">2</output>px</span>
+          <input type="range" min="0" max="12" step="1" data-lw-preview="seam" />
+        </label>
 
         <span class="lw-hint">${%preview.hint}</span>
       </div>

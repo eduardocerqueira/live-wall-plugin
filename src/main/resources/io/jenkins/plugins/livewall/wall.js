@@ -99,6 +99,8 @@
         animation: "animation",
         sizing: "sizing",
         packing: "packing",
+        sort: "sortBy",
+        sortby: "sortBy",
         header: "header",
         burnin: "burnIn",
     };
@@ -296,19 +298,50 @@
             });
         }
 
-        var selects = document.querySelectorAll("[data-lw-preview]");
-        for (var i = 0; i < selects.length; i++) {
-            var current = this.root.dataset[selects[i].getAttribute("data-lw-preview")];
-            if (current) {
-                selects[i].value = current;
+        var controls = document.querySelectorAll("[data-lw-preview]");
+        for (var i = 0; i < controls.length; i++) {
+            var control = controls[i];
+            var key = control.getAttribute("data-lw-preview");
+            var current = key === "gap" ? this.tileGap : key === "seam" ? this.seamWidth : this.root.dataset[key];
+            if (current !== undefined && current !== null && current !== "") {
+                control.value = current;
             }
-            selects[i].addEventListener("change", function (event) {
-                var key = event.target.getAttribute("data-lw-preview");
-                self.root.dataset[key] = event.target.value;
-                self.refreshInk();
-                self.applySpacing();
-                self.scheduleLayout();
+            this.showPreviewValue(control, key);
+
+            // Sliders report on "input" so the wall moves while you drag it.
+            ["change", "input"].forEach(function (eventName) {
+                control.addEventListener(eventName, function (event) {
+                    self.applyPreview(event.target.getAttribute("data-lw-preview"), event.target.value);
+                    self.showPreviewValue(event.target, event.target.getAttribute("data-lw-preview"));
+                });
             });
+        }
+    };
+
+    /** Applies one preview control. Nothing here is saved; Configure is what persists a look. */
+    Wall.prototype.applyPreview = function (key, value) {
+        if (key === "gap") {
+            this.tileGap = Math.max(0, Math.min(64, parseInt(value, 10) || 0));
+            this.applySpacing();
+        } else if (key === "seam") {
+            this.seamWidth = Math.max(0, Math.min(12, parseInt(value, 10) || 0));
+            this.applySpacing();
+        } else if (key === "sortBy") {
+            // Ordering is the server's decision, so ask it again rather than reshuffling here.
+            this.root.dataset.sortBy = value;
+            this.poll();
+        } else {
+            this.root.dataset[key] = value;
+            this.refreshInk();
+        }
+        this.scheduleLayout();
+    };
+
+    /** Keeps the number next to a slider in step with it. */
+    Wall.prototype.showPreviewValue = function (control, key) {
+        var output = document.querySelector('[data-lw-output="' + key + '"]');
+        if (output) {
+            output.textContent = control.value;
         }
     };
 
@@ -324,7 +357,7 @@
             return;
         }
 
-        fetch(this.dataUrl, {
+        fetch(this.currentDataUrl(), {
             credentials: "same-origin",
             cache: "no-store",
             headers: { Accept: "application/json" },
@@ -354,6 +387,15 @@
             .then(function () {
                 self.timer = window.setTimeout(self.poll.bind(self), self.refreshMs);
             });
+    };
+
+    /* Ordering happens on the server, so an override rides along with the request. */
+    Wall.prototype.currentDataUrl = function () {
+        var sort = this.root.dataset.sortBy;
+        if (!sort) {
+            return this.dataUrl;
+        }
+        return this.dataUrl + (this.dataUrl.indexOf("?") >= 0 ? "&" : "?") + "sortBy=" + encodeURIComponent(sort);
     };
 
     /* ------------------------------------------------------------------ rendering */

@@ -120,6 +120,14 @@ public class LiveWallView extends ListView {
     private boolean burnInProtection;
 
     @CheckForNull
+    private String includeNames;
+
+    @CheckForNull
+    private String excludeNames;
+
+    private transient volatile NameFilter nameFilter;
+
+    @CheckForNull
     private String nameReplaceRegex;
 
     @CheckForNull
@@ -183,6 +191,7 @@ public class LiveWallView extends ListView {
         minTileHeight =
                 clamp(minTileHeight, MIN_TILE_HEIGHT_FLOOR, MIN_TILE_HEIGHT_CEILING, DEFAULT_MIN_TILE_HEIGHT);
         compileNameReplacePattern();
+        compileNameFilter();
         return this;
     }
 
@@ -343,6 +352,28 @@ public class LiveWallView extends ListView {
     }
 
     @CheckForNull
+    public String getIncludeNames() {
+        return includeNames;
+    }
+
+    @DataBoundSetter
+    public void setIncludeNames(@CheckForNull String includeNames) {
+        this.includeNames = fixEmpty(includeNames);
+        compileNameFilter();
+    }
+
+    @CheckForNull
+    public String getExcludeNames() {
+        return excludeNames;
+    }
+
+    @DataBoundSetter
+    public void setExcludeNames(@CheckForNull String excludeNames) {
+        this.excludeNames = fixEmpty(excludeNames);
+        compileNameFilter();
+    }
+
+    @CheckForNull
     public String getNameReplaceRegex() {
         return nameReplaceRegex;
     }
@@ -459,6 +490,10 @@ public class LiveWallView extends ListView {
         return Packing.values();
     }
 
+    public SortBy[] getSortByOptions() {
+        return SortBy.values();
+    }
+
     // ---------------------------------------------------------------- the wall itself
 
     /**
@@ -470,8 +505,18 @@ public class LiveWallView extends ListView {
      */
     @NonNull
     public List<Tile> getTiles() {
+        return getTiles(getSortBy());
+    }
+
+    /**
+     * Snapshots the wall in a given order. The order is a parameter rather than always the saved
+     * one so that the preview controls, and a kiosk URL, can try an ordering without anyone having
+     * to save it first.
+     */
+    @NonNull
+    public List<Tile> getTiles(@NonNull SortBy sort) {
         StatusScope scope = getStatusScope();
-        SortBy sort = getSortBy();
+        NameFilter filter = nameFilter();
         Set<String> queuedJobs = queuedJobNames();
         List<Tile> tiles = new ArrayList<>();
 
@@ -480,6 +525,9 @@ public class LiveWallView extends ListView {
                 continue; // folders and other non-buildable items have no status to show
             }
             Job<?, ?> job = (Job<?, ?>) item;
+            if (!filter.accepts(job.getFullName(), job.getDisplayName(), relativeDisplayName(job))) {
+                continue;
+            }
             JobStatus status = JobStatus.of(job.getIconColor());
             if (hideDisabled && status == JobStatus.DISABLED) {
                 continue;
@@ -519,7 +567,7 @@ public class LiveWallView extends ListView {
                     completedAt));
         }
 
-        Comparator<Tile> order = comparator();
+        Comparator<Tile> order = comparator(sort);
         if (order != null) {
             tiles.sort(order);
         }
@@ -551,13 +599,19 @@ public class LiveWallView extends ListView {
         req.getView(this, "kiosk.jelly").forward(req, rsp);
     }
 
-    /** Serves the wall contents. Polled by {@code wall.js}; also a perfectly usable API. */
+    /**
+     * Serves the wall contents. Polled by {@code wall.js}; also a perfectly usable API.
+     *
+     * @param sortBy optional ordering for this request only, so that the preview controls and a
+     *     kiosk URL can try one without changing what is saved. Anything unrecognised falls back to
+     *     the view's own setting.
+     */
     @GET
-    public void doWallData(StaplerResponse2 rsp) throws IOException {
+    public void doWallData(StaplerResponse2 rsp, @QueryParameter String sortBy) throws IOException {
         checkPermission(View.READ);
 
         JSONArray array = new JSONArray();
-        for (Tile tile : getTiles()) {
+        for (Tile tile : getTiles(WallOption.parse(SortBy.class, sortBy, getSortBy()))) {
             array.add(tile.toJson());
         }
         JSONObject payload = new JSONObject();
@@ -595,6 +649,8 @@ public class LiveWallView extends ListView {
         setHideDisabled(readBoolean(form, "hideDisabled"));
         setBurnInProtection(readBoolean(form, "burnInProtection"));
 
+        setIncludeNames(form.optString("includeNames", null));
+        setExcludeNames(form.optString("excludeNames", null));
         setNameReplaceRegex(form.optString("nameReplaceRegex", null));
 
         setCustomBackground(form.optString("customBackground", null));
@@ -608,9 +664,9 @@ public class LiveWallView extends ListView {
     // ---------------------------------------------------------------- helpers
 
     @CheckForNull
-    private Comparator<Tile> comparator() {
+    private static Comparator<Tile> comparator(@NonNull SortBy sortBy) {
         Comparator<Tile> byLabel = Comparator.comparing(tile -> tile.label().toLowerCase(Locale.ROOT));
-        switch (getSortBy()) {
+        switch (sortBy) {
             case NAME:
                 return byLabel.thenComparing(Tile::fullName);
             case RUNNING:
@@ -693,6 +749,20 @@ public class LiveWallView extends ListView {
         rewritten = REPEATED_SEPARATORS.matcher(rewritten).replaceAll("-");
         rewritten = DANGLING_SEPARATORS.matcher(rewritten).replaceAll("");
         return rewritten.isEmpty() ? name : rewritten;
+    }
+
+    @NonNull
+    private NameFilter nameFilter() {
+        NameFilter current = nameFilter;
+        if (current == null) {
+            current = NameFilter.of(includeNames, excludeNames);
+            nameFilter = current;
+        }
+        return current;
+    }
+
+    private void compileNameFilter() {
+        nameFilter = NameFilter.of(includeNames, excludeNames);
     }
 
     private void compileNameReplacePattern() {
@@ -844,6 +914,20 @@ public class LiveWallView extends ListView {
                 return FormValidation.warning(Messages.LiveWallView_SeamZero());
             }
             return FormValidation.ok();
+        }
+
+        public FormValidation doCheckIncludeNames(@QueryParameter String value) {
+            return describeFilter(value, Messages.LiveWallView_IncludeAll());
+        }
+
+        public FormValidation doCheckExcludeNames(@QueryParameter String value) {
+            return describeFilter(value, Messages.LiveWallView_ExcludeNone());
+        }
+
+        /** Echoes the filter back in words, so a typo shows up before anyone walks to the TV. */
+        private static FormValidation describeFilter(@CheckForNull String value, String whenEmpty) {
+            String described = NameFilter.describe(value);
+            return FormValidation.ok(described.isEmpty() ? whenEmpty : described);
         }
 
         public FormValidation doCheckNameReplaceRegex(@QueryParameter String value) {

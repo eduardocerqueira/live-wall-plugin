@@ -40,12 +40,22 @@
       </div>
     </f:entry>
 
-    <f:optionalBlock name="useincluderegex" title="${%Use a regular expression to include jobs into the view}"
-                     checked="${it.includeRegex != null}" help="/help/view-config/includeregex.html">
-      <f:entry title="${%Regular expression}">
-        <f:textbox name="includeRegex" field="includeRegex" />
-      </f:entry>
-    </f:optionalBlock>
+    <f:entry title="${%Only show jobs matching}" field="includeNames">
+      <f:textarea placeholder="drools&#10;ci-*&#10;*-pipeline" />
+    </f:entry>
+
+    <f:entry title="${%But never these}" field="excludeNames">
+      <f:textarea placeholder="*-sandbox&#10;experimental" />
+    </f:entry>
+
+    <f:advanced title="${%Regular expression filter}">
+      <f:optionalBlock name="useincluderegex" title="${%Use a regular expression to include jobs into the view}"
+                       checked="${it.includeRegex != null}" help="/help/view-config/includeregex.html">
+        <f:entry title="${%Regular expression}">
+          <f:textbox name="includeRegex" field="includeRegex" />
+        </f:entry>
+      </f:optionalBlock>
+    </f:advanced>
   </f:section>
 
   <j:if test="${it.hasJobFilterExtensions()}">

@@ -15,9 +15,20 @@ public interface WallOption {
     @NonNull
     String getId();
 
-    /** Label shown in the view configuration form. */
+    /** Label shown in the view configuration form, where there is room to explain the choice. */
     @NonNull
     String getDisplayName();
+
+    /**
+     * The label without its explanation, for the preview bar, where seven drop-downs share a row
+     * and a full sentence in each one is unreadable. Everything before the em dash, if there is one.
+     */
+    @NonNull
+    default String getShortName() {
+        String name = getDisplayName();
+        int dash = name.indexOf(" — ");
+        return dash > 0 ? name.substring(0, dash) : name;
+    }
 
     /**
      * Resolves an id back to a constant, falling back to {@code fallback} for anything unknown so

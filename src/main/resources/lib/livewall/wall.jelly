@@ -16,6 +16,7 @@
        data-animation="${it.animation.id}"
        data-sizing="${it.sizing.id}"
        data-packing="${it.packing.id}"
+       data-sort-by="${it.sortBy.id}"
        data-gap="${it.tileGap}"
        data-seam="${it.seamWidth}"
        data-burn-in="${it.burnInProtection}"

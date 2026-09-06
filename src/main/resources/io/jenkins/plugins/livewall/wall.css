@@ -697,8 +697,32 @@
 }
 
 .lw-preview-bar .lw-hint {
+    flex-basis: 100%;
     color: var(--lw-muted, #666);
     font-size: 0.85em;
+}
+
+/* Labelled controls: with seven of them, unlabelled dropdowns become a guessing game. */
+.lw-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lw-field__label {
+    font-size: 0.78em;
+    font-weight: 600;
+    opacity: 0.75;
+}
+
+.lw-preview-bar .jenkins-select__input {
+    max-width: 240px;
+}
+
+.lw-field--slider input[type="range"] {
+    width: 120px;
+    margin: 0;
+    align-self: center;
 }
 
 /* ------------------------------------------------------------------ motion preferences */

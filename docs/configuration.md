@@ -18,6 +18,39 @@ choosing jobs for a view applies unchanged.
 
 The Columns section is deliberately absent: a wall draws tiles, not a table.
 
+### Only show jobs matching / But never these
+
+A name filter for the wall, with no regular expression in sight. One pattern per line, or separated
+by commas. Leave both blank and every job in the view gets a tile.
+
+| Pattern | Matches |
+| --- | --- |
+| `drools` | any name **containing** `drools` — `drools`, `drools-nightly`, `ci-drools-pipeline` |
+| `ci-*` | names **starting** with `ci-` |
+| `*-pipeline` | names **ending** with `-pipeline` |
+| `release-?` | `release-1`, but not `release-10` — `?` is exactly one character |
+
+A plain word means "contains" because typing a word into a filter box and getting nothing back —
+because it was not anchored — is the exact frustration this exists to avoid. Add a `*` or a `?` and
+the whole name has to match instead.
+
+Nothing else is special. A dot is a dot, `app(v2)` is a job called `app(v2)`. Matching ignores case,
+and each pattern is tried against the job's full name, its display name and the label drawn on the
+tile, so whichever of those you had in mind will work.
+
+**But never these** is applied afterwards, and wins: a job matching an exclude is dropped even if it
+also matched an include. Useful for carving the sandbox jobs out of an otherwise simple filter.
+
+```
+Only show jobs matching:   ci-*
+                           drools
+But never these:           *-sandbox
+```
+
+The view still *contains* every job you ticked; the filter decides which of them reach the wall. So
+one view can feed several walls with different URLs, and the include regex from a plain list view is
+still there under **Regular expression filter** if you already depend on it.
+
 ## Look
 
 ### Colour palette
@@ -194,13 +227,20 @@ comfortably type on. They do not change the saved configuration.
 | `animation` | `progress` `sweep` `stripes` `pulse` `none` |
 | `packing` | `interlock` `grid` |
 | `sizing` | `fit` `scroll` |
+| `sort` | `running` `status` `success` `name` `recent` `view-order` |
 | `gap` | Pixels between tiles |
 | `seam` | Pixels of separator inside each tile |
 | `refresh` | Seconds |
 | `header` | `0` or `1` |
 | `burnin` | `0` or `1` |
 
-The view page has a preview bar that does the same thing with drop-downs, against your real jobs.
+The view page has a preview bar that does the same thing against your real jobs: drop-downs for
+palette, shape, animation, packing and order, and sliders for the gap and the separator. Nothing
+there is saved — it is for finding a look you like before committing it under **Configure**.
+
+Ordering is decided on the server, so `?sort=` travels to the data endpoint rather than being
+restyled in the browser. `…/view/<name>/wallData?sortBy=status` is a perfectly good API call on its
+own.
 
 ## Configuration as code
 

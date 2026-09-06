@@ -186,6 +186,52 @@ class LiveWallViewTest {
     }
 
     @Test
+    void theNameFilterPicksJobsWithoutARegularExpression(JenkinsRule r) throws Exception {
+        r.createFreeStyleProject("ci-decision-control");
+        r.createFreeStyleProject("ci-decision-sandbox");
+        r.createFreeStyleProject("drools-nightly");
+        r.createFreeStyleProject("quarkus");
+
+        LiveWallView view = createView(r, "wall");
+        view.setIncludeRegex(".*");
+
+        assertEquals(4, view.getTiles().size(), "no filter means every job");
+
+        view.setIncludeNames("ci-*\ndrools");
+        assertEquals(
+                List.of("ci-decision-control", "ci-decision-sandbox", "drools-nightly"),
+                labels(view),
+                "a wildcard anchors, a plain word means contains");
+
+        view.setExcludeNames("*-sandbox");
+        assertEquals(List.of("ci-decision-control", "drools-nightly"), labels(view));
+
+        view.setIncludeNames(null);
+        view.setExcludeNames(null);
+        assertEquals(4, view.getTiles().size(), "clearing the filter brings them back");
+    }
+
+    @Test
+    void theWallDataEndpointCanBeAskedForADifferentOrder(JenkinsRule r) throws Exception {
+        FreeStyleProject passing = r.createFreeStyleProject("aaa-passing");
+        FreeStyleProject failing = r.createFreeStyleProject("zzz-failing");
+        failing.getBuildersList().add(new org.jvnet.hudson.test.FailureBuilder());
+        r.buildAndAssertSuccess(passing);
+        r.assertBuildStatus(Result.FAILURE, failing.scheduleBuild2(0));
+
+        LiveWallView view = createView(r, "wall");
+        view.setIncludeRegex(".*");
+        view.setSortBy("name");
+
+        assertEquals(List.of("aaa-passing", "zzz-failing"), labelsFrom(r, "view/wall/wallData"));
+        assertEquals(
+                List.of("zzz-failing", "aaa-passing"),
+                labelsFrom(r, "view/wall/wallData?sortBy=status"),
+                "the override reorders this response only");
+        assertSame(SortBy.NAME, view.getSortBy(), "and does not change what is saved");
+    }
+
+    @Test
     void nameRewritingStripsTheNoiseAndNeverBlanksATile(JenkinsRule r) throws Exception {
         r.createFreeStyleProject("ci-decision-control-pipeline");
 
@@ -407,6 +453,17 @@ class LiveWallViewTest {
                 .findFirst()
                 .orElseThrow()
                 .status();
+    }
+
+    private static List<String> labelsFrom(JenkinsRule r, String url) throws Exception {
+        Page page = r.createWebClient().goTo(url, "application/json");
+        JSONArray tiles =
+                JSONObject.fromObject(page.getWebResponse().getContentAsString()).getJSONArray("tiles");
+        List<String> labels = new java.util.ArrayList<>();
+        for (int i = 0; i < tiles.size(); i++) {
+            labels.add(tiles.getJSONObject(i).getString("label"));
+        }
+        return labels;
     }
 
     private static List<String> labels(LiveWallView view) {
