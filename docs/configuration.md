@@ -55,6 +55,30 @@ proportions whatever shape their grid cell is, so they suit walls with room to s
 eat into the middle of a tile leave less room for the name, and the label shrinks to match
 automatically.
 
+### How tiles fit together
+
+**Interlocked** (the default) offsets every other column or row and lets each shape overhang its
+cell by exactly the amount its geometry needs, so the tiles tessellate into one continuous surface:
+hexagons become a honeycomb, diamonds a lattice, parallelograms and chevrons a ribbon. **Grid** puts
+every tile squarely in its own cell.
+
+Rectangles, squares, octagons and crosses already tile edge to edge at zero gap and look the same
+either way. Circles cannot tile at all, so they are left alone.
+
+### Gap between tiles, and the separator inside them
+
+Two different controls, and it is worth knowing which one you want.
+
+| | |
+| --- | --- |
+| **Gap between tiles** | Empty background *between* tiles. **Zero by default**, which is what makes the wall read as one surface rather than a scattering of cards. Raise it if you would rather the tiles floated. |
+| **Separator inside each tile** | A hairline of background colour drawn *inside* each tile's own outline, following the shape rather than its bounding box. Two pixels by default. |
+
+The separator is what keeps zero gap usable. Without it, twenty passing jobs next to each other are
+one green rectangle and you cannot tell how many jobs you are looking at. With it, they stay
+countable while the wall still reads as a single surface — and on a honeycomb it looks like the wall
+between cells. Go to four or five pixels on a 4K panel viewed from a long way away.
+
 ### In-progress animation
 
 | | |
@@ -89,10 +113,16 @@ plasma panel showing the same thing every day. Pointless on an LCD.
 
 | | |
 | --- | --- |
-| **Name** | The default, and the right answer for most walls: tiles stay in the same place between refreshes, so people learn where things are. |
-| **Status** | Problems float to the top left, at the cost of tiles moving as builds finish. |
+| **Running first** | The default. Whatever is building right now rises to the top left, then anything queued, then the rest worst-first. The wall answers "what is happening" before "what is broken". |
+| **Failed first** | Problems at the top left, regardless of what is building. |
+| **Passing first** | The inverse, with failures at the bottom. |
+| **Name** | Alphabetical, and the only ordering where nothing ever moves. Pick this if you would rather learn where each job lives than have the interesting one come to you. |
 | **Most recently built first** | |
 | **View order** | Whatever order the underlying view produces. |
+
+The status-based orderings move tiles around as builds start and finish. That is the point of them,
+but it does mean a job is not always in the same place — which is the trade-off **Name** exists to
+avoid.
 
 ### The tick boxes
 
@@ -162,7 +192,10 @@ comfortably type on. They do not change the saved configuration.
 | `palette` | `vivid` `neon` `contrast` `daylight` `colorsafe` `midnight` |
 | `shape` | `rectangle` `rounded` `square` `circle` `octagon` `hexagon` `diamond` `parallelogram` `chevron` `cross` |
 | `animation` | `progress` `sweep` `stripes` `pulse` `none` |
+| `packing` | `interlock` `grid` |
 | `sizing` | `fit` `scroll` |
+| `gap` | Pixels between tiles |
+| `seam` | Pixels of separator inside each tile |
 | `refresh` | Seconds |
 | `header` | `0` or `1` |
 | `burnin` | `0` or `1` |
@@ -183,13 +216,16 @@ curl -X POST "$JENKINS/createView?name=Live%20Wall" \
   <name>Live Wall</name>
   <includeRegex>.*</includeRegex>
   <palette>COLORSAFE</palette>
-  <shape>OCTAGON</shape>
+  <shape>HEXAGON</shape>
+  <packing>INTERLOCK</packing>
+  <sortBy>RUNNING</sortBy>
+  <tileGap>0</tileGap>
   <statusScope>PROBLEMS</statusScope>
 </io.jenkins.plugins.livewall.LiveWallView>
 XML
 ```
 
-Enum values are the constant names — `VIVID`, `OCTAGON`, `PROBLEMS` and so on.
+Enum values are the constant names — `VIVID`, `HEXAGON`, `RUNNING`, `PROBLEMS` and so on.
 
 ## The data endpoint
 

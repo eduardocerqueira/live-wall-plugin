@@ -88,6 +88,18 @@
       <f:select value="${it.animation.id}" />
     </f:entry>
 
+    <f:entry title="${%How tiles fit together}" field="packing">
+      <f:select value="${it.packing.id}" />
+    </f:entry>
+
+    <f:entry title="${%Gap between tiles (pixels)}" field="tileGap">
+      <f:number clazz="non-negative-number" min="0" max="64" step="1" />
+    </f:entry>
+
+    <f:entry title="${%Separator inside each tile (pixels)}" field="seamWidth">
+      <f:number clazz="non-negative-number" min="0" max="12" step="1" />
+    </f:entry>
+
     <f:entry field="burnInProtection">
       <f:checkbox title="${%Drift the wall slowly to protect the panel}" />
     </f:entry>

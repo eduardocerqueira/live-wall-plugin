@@ -78,8 +78,9 @@ Requires **Jenkins 2.516.3 or newer**.
 | **Shapes** | Rectangle · Rounded · Square · Circle · Octagon · Hexagon · Diamond · Parallelogram · Chevron · Cross |
 | **Animations** | Progress fill · Sweep · Stripes · Pulse · None |
 | **Contents** | All jobs, or only problems — an alert board where an empty screen means everything is fine |
-| **Order** | Name (stable positions) · Status (problems top left) · Most recent · View order |
+| **Order** | Running first (default) · Failed first · Passing first · Name (nothing ever moves) · Most recent · View order |
 | **Labels** | Folder paths on or off, and a regex to strip the noise: `^ci-\|-pipeline$` turns `ci-decision-control-pipeline` into `decision-control`, and lets it be drawn twice as large |
+| **Packing** | Interlocked by default, so hexagons tessellate into a honeycomb and diamonds into a lattice, with an adjustable gap (0 by default) and a hairline separator that keeps touching tiles countable |
 | **Sizing** | Fit everything on one screen, or hold a readable size and scroll continuously |
 | **Panel care** | Optional slow drift to protect OLED and plasma screens from burn-in |
 

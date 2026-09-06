@@ -39,9 +39,15 @@ class LiveWallViewTest {
         assertSame(TileShape.ROUNDED, view.getShape());
         assertSame(TileAnimation.PROGRESS, view.getAnimation());
         assertSame(Sizing.FIT, view.getSizing(), "fit, because pagination is the thing this replaces");
-        assertSame(SortBy.NAME, view.getSortBy());
+        assertSame(SortBy.RUNNING, view.getSortBy(), "what is happening now comes first");
         assertSame(StatusScope.ALL, view.getStatusScope());
         assertEquals(LiveWallView.DEFAULT_REFRESH_SECONDS, view.getRefreshSeconds());
+        assertSame(Packing.INTERLOCK, view.getPacking(), "so a wall of hexagons is a honeycomb");
+        assertEquals(0, view.getTileGap(), "tiles meet by default; the wall is one surface");
+        assertEquals(
+                LiveWallView.DEFAULT_SEAM_WIDTH,
+                view.getSeamWidth(),
+                "but a hairline keeps same-coloured neighbours countable");
         assertTrue(view.isShowHeader());
         assertTrue(view.isShowFolderPath());
         assertFalse(view.isShowBuildNumber(), "per-tile detail stays off unless asked for");
@@ -92,7 +98,42 @@ class LiveWallViewTest {
         assertEquals(List.of("aaa-passing", "zzz-failing"), labels(view));
 
         view.setSortBy("status");
-        assertEquals(List.of("zzz-failing", "aaa-passing"), labels(view));
+        assertEquals(List.of("zzz-failing", "aaa-passing"), labels(view), "failed first");
+
+        view.setSortBy("success");
+        assertEquals(List.of("aaa-passing", "zzz-failing"), labels(view), "passing first");
+    }
+
+    @Test
+    void runningFirstLiftsABuildingJobAboveAFailingOne(JenkinsRule r) throws Exception {
+        FreeStyleProject broken = r.createFreeStyleProject("zzz-broken");
+        broken.getBuildersList().add(new org.jvnet.hudson.test.FailureBuilder());
+        r.assertBuildStatus(Result.FAILURE, broken.scheduleBuild2(0));
+
+        FreeStyleProject slow = r.createFreeStyleProject("aaa-slow");
+        slow.getBuildersList().add(new org.jvnet.hudson.test.SleepBuilder(60_000));
+        slow.scheduleBuild2(0);
+
+        long deadline = System.currentTimeMillis() + 30_000;
+        while (!slow.isBuilding() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100);
+        }
+        assertTrue(slow.isBuilding(), "the slow job never started, so this test proves nothing");
+
+        try {
+            LiveWallView view = createView(r, "wall");
+            view.setIncludeRegex(".*");
+
+            assertEquals(
+                    List.of("aaa-slow", "zzz-broken"),
+                    labels(view),
+                    "by default a job building right now outranks a failing one");
+
+            view.setSortBy("status");
+            assertEquals(List.of("zzz-broken", "aaa-slow"), labels(view), "failed first reverses that");
+        } finally {
+            slow.getLastBuild().doStop();
+        }
     }
 
     @Test
@@ -203,6 +244,25 @@ class LiveWallViewTest {
     }
 
     @Test
+    void spacingAcceptsZeroAndClampsTheRest(JenkinsRule r) throws Exception {
+        LiveWallView view = createView(r, "wall");
+
+        // Zero is a real value here, not "unset" -- it is the default, and the other numeric
+        // settings on this view deliberately treat zero as "give me the default" instead.
+        view.setTileGap(0);
+        assertEquals(0, view.getTileGap());
+        view.setSeamWidth(0);
+        assertEquals(0, view.getSeamWidth());
+
+        view.setTileGap(-5);
+        assertEquals(0, view.getTileGap());
+        view.setTileGap(9999);
+        assertEquals(LiveWallView.MAX_TILE_GAP, view.getTileGap());
+        view.setSeamWidth(9999);
+        assertEquals(LiveWallView.MAX_SEAM_WIDTH, view.getSeamWidth());
+    }
+
+    @Test
     void unknownOptionIdsFallBackInsteadOfThrowing(JenkinsRule r) throws Exception {
         LiveWallView view = createView(r, "wall");
 
@@ -236,10 +296,19 @@ class LiveWallViewTest {
         assertSame(TileShape.ROUNDED, view.getShape());
         assertSame(TileAnimation.PROGRESS, view.getAnimation());
         assertSame(Sizing.FIT, view.getSizing());
-        assertSame(SortBy.NAME, view.getSortBy());
+        assertSame(SortBy.RUNNING, view.getSortBy(), "what is happening now comes first");
         assertSame(StatusScope.ALL, view.getStatusScope());
+        assertSame(Packing.INTERLOCK, view.getPacking());
         assertEquals(LiveWallView.DEFAULT_REFRESH_SECONDS, view.getRefreshSeconds());
         assertEquals(LiveWallView.DEFAULT_MIN_TILE_HEIGHT, view.getMinTileHeight());
+        assertEquals(LiveWallView.DEFAULT_SEAM_WIDTH, view.getSeamWidth());
+        // Booleans that default to true are the easy ones to get wrong here, because XStream
+        // leaves an omitted element as false rather than running the field initialiser.
+        assertTrue(view.isShowHeader(), "a scripted view still gets its header");
+        assertTrue(view.isShowFolderPath());
+        assertFalse(view.isShowBuildNumber());
+        assertFalse(view.isHideDisabled());
+        assertFalse(view.isBurnInProtection());
         assertEquals(List.of("seeded"), labels(view), "and the include regex still works");
     }
 
@@ -273,8 +342,11 @@ class LiveWallViewTest {
         view.setSizing("scroll");
         view.setSortBy("status");
         view.setStatusScope("problems");
+        view.setPacking("grid");
         view.setRefreshSeconds(12);
         view.setMinTileHeight(140);
+        view.setTileGap(10);
+        view.setSeamWidth(5);
         view.setShowBuildNumber(true);
         view.setShowHeader(false);
         view.setShowFolderPath(false);
@@ -293,8 +365,11 @@ class LiveWallViewTest {
         assertSame(Sizing.SCROLL, reloaded.getSizing());
         assertSame(SortBy.STATUS, reloaded.getSortBy());
         assertSame(StatusScope.PROBLEMS, reloaded.getStatusScope());
+        assertSame(Packing.GRID, reloaded.getPacking());
         assertEquals(12, reloaded.getRefreshSeconds());
         assertEquals(140, reloaded.getMinTileHeight());
+        assertEquals(10, reloaded.getTileGap());
+        assertEquals(5, reloaded.getSeamWidth());
         assertTrue(reloaded.isShowBuildNumber());
         assertFalse(reloaded.isShowHeader());
         assertFalse(reloaded.isShowFolderPath());
@@ -317,6 +392,9 @@ class LiveWallViewTest {
         String embedded = client.goTo("view/wall/").getWebResponse().getContentAsString();
         assertTrue(embedded.contains("lw-root--embedded"), "the wall renders inside the view page");
         assertTrue(embedded.contains("data-palette=\"vivid\""));
+        assertTrue(embedded.contains("data-packing=\"interlock\""), "the browser needs the packing mode");
+        assertTrue(embedded.contains("data-gap=\"0\""));
+        assertTrue(embedded.contains("data-seam=\"2\""));
 
         String kiosk = client.goTo("view/wall/wall").getWebResponse().getContentAsString();
         assertTrue(kiosk.contains("lw-root--kiosk"));

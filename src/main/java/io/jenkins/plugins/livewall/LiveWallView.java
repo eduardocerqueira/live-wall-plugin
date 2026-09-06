@@ -70,6 +70,15 @@ public class LiveWallView extends ListView {
     static final int MIN_TILE_HEIGHT_CEILING = 600;
     static final int DEFAULT_MIN_TILE_HEIGHT = 110;
 
+    static final int MAX_TILE_GAP = 64;
+    /** Zero by default: tiles meet, and the wall reads as one surface rather than scattered cards. */
+    static final int DEFAULT_TILE_GAP = 0;
+
+    static final int MAX_SEAM_WIDTH = 12;
+    /** A hairline of background colour drawn inside each tile, so that a run of same-coloured
+     *  neighbours at zero gap is still countable instead of merging into one block. */
+    static final int DEFAULT_SEAM_WIDTH = 2;
+
     /** A CSS hex colour, or a bare CSS colour keyword. Anything else is dropped on save. */
     private static final Pattern SAFE_COLOR =
             Pattern.compile("#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|[a-zA-Z]{3,24}");
@@ -83,14 +92,29 @@ public class LiveWallView extends ListView {
     private TileShape shape = TileShape.ROUNDED;
     private TileAnimation animation = TileAnimation.PROGRESS;
     private Sizing sizing = Sizing.FIT;
-    private SortBy sortBy = SortBy.NAME;
+    private SortBy sortBy = SortBy.RUNNING;
     private StatusScope statusScope = StatusScope.ALL;
+
+    private Packing packing = Packing.INTERLOCK;
 
     private int refreshSeconds = DEFAULT_REFRESH_SECONDS;
     private int minTileHeight = DEFAULT_MIN_TILE_HEIGHT;
+    private int tileGap = DEFAULT_TILE_GAP;
 
-    private boolean showHeader = true;
-    private boolean showFolderPath = true;
+    /** Boxed because zero is a legal width, so null is the only way to mean "never set". XStream
+     *  does not run field initialisers, and a config.xml that omits this must still get a seam. */
+    @CheckForNull
+    private Integer seamWidth;
+
+    /* Boxed, both of them, because their default is true and XStream does not run field
+     * initialisers: a config.xml that omits the element -- which is what JCasC and any scripted
+     * view creation produce -- would otherwise silently switch them off. */
+    @CheckForNull
+    private Boolean showHeader;
+
+    @CheckForNull
+    private Boolean showFolderPath;
+
     private boolean showBuildNumber;
     private boolean hideDisabled;
     private boolean burnInProtection;
@@ -143,10 +167,17 @@ public class LiveWallView extends ListView {
             sizing = Sizing.FIT;
         }
         if (sortBy == null) {
-            sortBy = SortBy.NAME;
+            sortBy = SortBy.RUNNING;
         }
         if (statusScope == null) {
             statusScope = StatusScope.ALL;
+        }
+        if (packing == null) {
+            packing = Packing.INTERLOCK;
+        }
+        tileGap = clampRange(tileGap, 0, MAX_TILE_GAP);
+        if (seamWidth != null) {
+            seamWidth = clampRange(seamWidth, 0, MAX_SEAM_WIDTH);
         }
         refreshSeconds = clamp(refreshSeconds, MIN_REFRESH_SECONDS, MAX_REFRESH_SECONDS, DEFAULT_REFRESH_SECONDS);
         minTileHeight =
@@ -199,12 +230,12 @@ public class LiveWallView extends ListView {
 
     @NonNull
     public SortBy getSortBy() {
-        return sortBy == null ? SortBy.NAME : sortBy;
+        return sortBy == null ? SortBy.RUNNING : sortBy;
     }
 
     @DataBoundSetter
     public void setSortBy(@CheckForNull String sortBy) {
-        this.sortBy = WallOption.parse(SortBy.class, sortBy, SortBy.NAME);
+        this.sortBy = WallOption.parse(SortBy.class, sortBy, SortBy.RUNNING);
     }
 
     @NonNull
@@ -215,6 +246,36 @@ public class LiveWallView extends ListView {
     @DataBoundSetter
     public void setStatusScope(@CheckForNull String statusScope) {
         this.statusScope = WallOption.parse(StatusScope.class, statusScope, StatusScope.ALL);
+    }
+
+    @NonNull
+    public Packing getPacking() {
+        return packing == null ? Packing.INTERLOCK : packing;
+    }
+
+    @DataBoundSetter
+    public void setPacking(@CheckForNull String packing) {
+        this.packing = WallOption.parse(Packing.class, packing, Packing.INTERLOCK);
+    }
+
+    /** Space between tiles in pixels. Zero by design: a wall, not a set of cards. */
+    public int getTileGap() {
+        return tileGap;
+    }
+
+    @DataBoundSetter
+    public void setTileGap(int tileGap) {
+        this.tileGap = clampRange(tileGap, 0, MAX_TILE_GAP);
+    }
+
+    /** Width of the hairline of background colour drawn inside each tile's outline. */
+    public int getSeamWidth() {
+        return seamWidth == null ? DEFAULT_SEAM_WIDTH : seamWidth;
+    }
+
+    @DataBoundSetter
+    public void setSeamWidth(int seamWidth) {
+        this.seamWidth = clampRange(seamWidth, 0, MAX_SEAM_WIDTH);
     }
 
     public int getRefreshSeconds() {
@@ -237,7 +298,7 @@ public class LiveWallView extends ListView {
     }
 
     public boolean isShowHeader() {
-        return showHeader;
+        return showHeader == null || showHeader;
     }
 
     @DataBoundSetter
@@ -246,7 +307,7 @@ public class LiveWallView extends ListView {
     }
 
     public boolean isShowFolderPath() {
-        return showFolderPath;
+        return showFolderPath == null || showFolderPath;
     }
 
     @DataBoundSetter
@@ -394,6 +455,10 @@ public class LiveWallView extends ListView {
         return TileAnimation.values();
     }
 
+    public Packing[] getPackingOptions() {
+        return Packing.values();
+    }
+
     // ---------------------------------------------------------------- the wall itself
 
     /**
@@ -513,11 +578,14 @@ public class LiveWallView extends ListView {
         setShape(form.optString("shape", null));
         setAnimation(form.optString("animation", null));
         setSizing(form.optString("sizing", null));
+        setPacking(form.optString("packing", null));
         setSortBy(form.optString("sortBy", null));
         setStatusScope(form.optString("statusScope", null));
 
         setRefreshSeconds(readInt(form, "refreshSeconds", DEFAULT_REFRESH_SECONDS));
         setMinTileHeight(readInt(form, "minTileHeight", DEFAULT_MIN_TILE_HEIGHT));
+        setTileGap(readInt(form, "tileGap", DEFAULT_TILE_GAP));
+        setSeamWidth(readInt(form, "seamWidth", DEFAULT_SEAM_WIDTH));
 
         // Checkboxes are always present in a submitted form, so an absent key means "off" rather
         // than "leave it alone" -- otherwise a box could be ticked but never unticked.
@@ -545,8 +613,17 @@ public class LiveWallView extends ListView {
         switch (getSortBy()) {
             case NAME:
                 return byLabel.thenComparing(Tile::fullName);
+            case RUNNING:
+                // Building, then queued, then everything else worst-first, so the wall answers
+                // "what is happening right now" before "what is broken".
+                return Comparator.comparingInt((Tile tile) -> tile.building() ? 0 : tile.queued() ? 1 : 2)
+                        .thenComparingInt(tile -> tile.status().getSeverity())
+                        .thenComparing(byLabel);
             case STATUS:
                 return Comparator.comparingInt((Tile tile) -> tile.status().getSeverity())
+                        .thenComparing(byLabel);
+            case SUCCESS:
+                return Comparator.comparingInt((Tile tile) -> -tile.status().getSeverity())
                         .thenComparing(byLabel);
             case RECENT:
                 return Comparator.comparingLong((Tile tile) -> Math.max(tile.startedAt(), tile.completedAt()))
@@ -577,7 +654,7 @@ public class LiveWallView extends ListView {
      */
     @NonNull
     private String label(@NonNull Job<?, ?> job) {
-        String base = showFolderPath ? relativeDisplayName(job) : job.getDisplayName();
+        String base = isShowFolderPath() ? relativeDisplayName(job) : job.getDisplayName();
         return rewriteName(base);
     }
 
@@ -680,6 +757,11 @@ public class LiveWallView extends ListView {
         return trimmed;
     }
 
+    /** Plain clamp, for settings where zero is a real value rather than "unset". */
+    private static int clampRange(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     /** Keeps a number inside its range, treating "absent" (zero or negative) as "use the default". */
     private static int clamp(int value, int min, int max, int fallback) {
         if (value <= 0) {
@@ -714,6 +796,10 @@ public class LiveWallView extends ListView {
             return WallOption.items(Sizing.class);
         }
 
+        public ListBoxModel doFillPackingItems() {
+            return WallOption.items(Packing.class);
+        }
+
         public ListBoxModel doFillSortByItems() {
             return WallOption.items(SortBy.class);
         }
@@ -739,6 +825,23 @@ public class LiveWallView extends ListView {
             if (value < MIN_TILE_HEIGHT_FLOOR || value > MIN_TILE_HEIGHT_CEILING) {
                 return FormValidation.error(
                         Messages.LiveWallView_TileHeightRange(MIN_TILE_HEIGHT_FLOOR, MIN_TILE_HEIGHT_CEILING));
+            }
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckTileGap(@QueryParameter int value) {
+            if (value < 0 || value > MAX_TILE_GAP) {
+                return FormValidation.error(Messages.LiveWallView_GapRange(MAX_TILE_GAP));
+            }
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckSeamWidth(@QueryParameter int value) {
+            if (value < 0 || value > MAX_SEAM_WIDTH) {
+                return FormValidation.error(Messages.LiveWallView_SeamRange(MAX_SEAM_WIDTH));
+            }
+            if (value == 0) {
+                return FormValidation.warning(Messages.LiveWallView_SeamZero());
             }
             return FormValidation.ok();
         }

@@ -20,7 +20,9 @@
     --lw-bg: #0a0c10;
     --lw-fg: #e6ebf2;
     --lw-muted: #8892a4;
-    --lw-gap: 8px;
+    --lw-gap: 0px;
+    --lw-seam: 2px;
+    --lw-seam-color: var(--lw-bg);
     --lw-radius: 12px;
     --lw-edge: 0px; /* tile outline width; palettes that need separation raise this */
     --lw-edge-color: transparent;
@@ -272,11 +274,8 @@
     height: 100%;
 }
 
-/* In scroll mode the grid is taller than its scroller and gets animated instead of squashed. */
-.lw-root[data-sizing="scroll"] .lw-grid {
-    height: auto;
-    grid-auto-rows: var(--lw-row-height, 110px);
-}
+/* In scroll mode the grid is taller than its scroller and gets animated instead of squashed.
+   Its tracks and height are written by live-wall.js in both modes. */
 
 /* ------------------------------------------------------------------ tiles */
 
@@ -296,13 +295,26 @@
     outline-offset: 3px;
 }
 
+/* The seam layer. Its size is written by live-wall.js: normally the grid cell, but larger when a
+   shape has to overhang its cell to tessellate. */
 .lw-shape {
     position: relative;
+    display: block;
+    flex: 0 0 auto;
+    width: var(--lw-shape-w, 100%);
+    height: var(--lw-shape-h, 100%);
+    background: var(--lw-seam-color);
+    border-radius: var(--lw-shape-radius, 0);
+}
+
+/* The fill, inset by the seam width so a hairline of background shows around every tile. Without
+   it a run of twenty passing jobs at zero gap is one green rectangle and you cannot count them. */
+.lw-face {
+    position: absolute;
+    inset: var(--lw-seam);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 100%;
     overflow: hidden;
     background: var(--lw-fill, var(--lw-notbuilt));
     color: var(--lw-ink, #000);
@@ -311,6 +323,11 @@
     transition:
         background-color 420ms ease,
         color 420ms ease;
+}
+
+/* Alternate columns (or rows) slide by half a cell so the shapes lock together. */
+.lw-tile[data-shift="true"] {
+    transform: translate(var(--lw-shift-x, 0px), var(--lw-shift-y, 0px));
 }
 
 /* Status to fill. --lw-ink-* are written by live-wall.js from the resolved fill colour. */
@@ -352,8 +369,8 @@
 }
 
 /* Second, non-colour cue for the colour-blind-safe palette. */
-.lw-root[data-palette="colorsafe"] .lw-tile[data-status="failure"] .lw-shape::before,
-.lw-root[data-palette="colorsafe"] .lw-tile[data-status="unstable"] .lw-shape::before {
+.lw-root[data-palette="colorsafe"] .lw-tile[data-status="failure"] .lw-face::before,
+.lw-root[data-palette="colorsafe"] .lw-tile[data-status="unstable"] .lw-face::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -367,7 +384,7 @@
     pointer-events: none;
 }
 
-.lw-root[data-palette="colorsafe"] .lw-tile[data-status="unstable"] .lw-shape::before {
+.lw-root[data-palette="colorsafe"] .lw-tile[data-status="unstable"] .lw-face::before {
     background: repeating-linear-gradient(
         -45deg,
         rgba(0, 0, 0, 0.16) 0,
@@ -438,7 +455,8 @@
     --lw-text-inset: 13%;
 }
 
-.lw-root[data-shape="octagon"] .lw-tile .lw-shape {
+.lw-root[data-shape="octagon"] .lw-shape,
+.lw-root[data-shape="octagon"] .lw-face {
     clip-path: polygon(24% 0, 76% 0, 100% 24%, 100% 76%, 76% 100%, 24% 100%, 0 76%, 0 24%);
 }
 
@@ -446,15 +464,17 @@
     --lw-text-inset: 16%;
 }
 
-.lw-root[data-shape="hexagon"] .lw-tile .lw-shape {
-    clip-path: polygon(22% 0, 78% 0, 100% 50%, 78% 100%, 22% 100%, 0 50%);
+.lw-root[data-shape="hexagon"] .lw-shape,
+.lw-root[data-shape="hexagon"] .lw-face {
+    clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
 }
 
 .lw-root[data-shape="diamond"] .lw-tile {
     --lw-text-inset: 26%;
 }
 
-.lw-root[data-shape="diamond"] .lw-tile .lw-shape {
+.lw-root[data-shape="diamond"] .lw-shape,
+.lw-root[data-shape="diamond"] .lw-face {
     clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 
@@ -462,7 +482,8 @@
     --lw-text-inset: 14%;
 }
 
-.lw-root[data-shape="parallelogram"] .lw-tile .lw-shape {
+.lw-root[data-shape="parallelogram"] .lw-shape,
+.lw-root[data-shape="parallelogram"] .lw-face {
     clip-path: polygon(11% 0, 100% 0, 89% 100%, 0 100%);
 }
 
@@ -470,15 +491,17 @@
     --lw-text-inset: 14%;
 }
 
-.lw-root[data-shape="chevron"] .lw-tile .lw-shape {
-    clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%);
+.lw-root[data-shape="chevron"] .lw-shape,
+.lw-root[data-shape="chevron"] .lw-face {
+    clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%, 12% 50%);
 }
 
 .lw-root[data-shape="cross"] .lw-tile {
     --lw-text-inset: 30%;
 }
 
-.lw-root[data-shape="cross"] .lw-tile .lw-shape {
+.lw-root[data-shape="cross"] .lw-shape,
+.lw-root[data-shape="cross"] .lw-face {
     clip-path: polygon(
         32% 0,
         68% 0,
@@ -493,17 +516,6 @@
         0 32%,
         32% 32%
     );
-}
-
-/* Square silhouettes keep their proportions inside whatever cell the grid gives them.
-   --lw-square is the measured min(cell width, cell height), written by live-wall.js. */
-.lw-root[data-shape="square"] .lw-shape,
-.lw-root[data-shape="circle"] .lw-shape,
-.lw-root[data-shape="diamond"] .lw-shape,
-.lw-root[data-shape="cross"] .lw-shape {
-    flex: 0 0 auto;
-    width: var(--lw-square, 100%);
-    height: var(--lw-square, 100%);
 }
 
 /* ------------------------------------------------------------------ in-progress motion */
@@ -579,7 +591,7 @@
 
 /* Always present while building, whatever the animation: a bright edge that survives being
    photographed, screenshotted, or looked at from a very long way away. */
-.lw-tile[data-building="true"] .lw-shape::after {
+.lw-tile[data-building="true"] .lw-face::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -589,7 +601,7 @@
 }
 
 /* Queued but not yet started: dashed edge, no fill motion. */
-.lw-tile[data-queued="true"]:not([data-building="true"]) .lw-shape::after {
+.lw-tile[data-queued="true"]:not([data-building="true"]) .lw-face::after {
     content: "";
     position: absolute;
     inset: 2px;

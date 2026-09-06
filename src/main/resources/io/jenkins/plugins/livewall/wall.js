@@ -53,13 +53,43 @@
         circle: 1,
         octagon: 1.3,
         hexagon: 1.4,
-        diamond: 1,
+        // A diamond spans two rows, so a square-ish diamond wants a cell twice as wide as it is
+        // tall. Asking for a square cell here is what makes them come out long and thin.
+        diamond: 2,
         parallelogram: 2.2,
         chevron: 2,
         cross: 1,
     };
 
-    var SQUARE_SHAPES = { square: 1, circle: 1, diamond: 1, cross: 1 };
+    var SQUARE_SHAPES = { square: 1, circle: 1, cross: 1 };
+
+    /*
+     * How each shape locks into its neighbours, in fractions of a grid cell.
+     *
+     *   bleedX/bleedY  how far the silhouette overhangs its cell, so that adjacent shapes meet
+     *                  along a shared edge instead of merely sitting next to each other.
+     *   shift          which alternate line slides by half a cell: "column" moves every other
+     *                  column down, "row" moves every other row across.
+     *
+     * The numbers are geometry, not taste, and they have to match the clip-paths in wall.css:
+     *
+     *   hexagon        vertices at 25%/75% put the horizontal step at 0.75 of the width, so the
+     *                  shape is 1/0.75 of a cell wide and alternate columns drop half a row. A
+     *                  honeycomb.
+     *   diamond        rows step by half the shape height and alternate rows shift half a cell
+     *                  across, which is a square lattice stood on its corner.
+     *   parallelogram  the 11% slant means the step is 0.89 of the width.
+     *   chevron        the point reaches 100% and the notch starts at 12%, so the step is 0.88.
+     *
+     * Shapes absent from this table already tile edge to edge at zero gap (rectangle, rounded,
+     * square, octagon, cross) or cannot tile at all (circle).
+     */
+    var TESSELLATION = {
+        hexagon: { bleedX: 1 / 3, bleedY: 0, shift: "column", shiftX: 0, shiftY: 0.5 },
+        diamond: { bleedX: 0, bleedY: 1, shift: "row", shiftX: 0.5, shiftY: 0 },
+        parallelogram: { bleedX: 1 / 0.89 - 1, bleedY: 0, shift: "none", shiftX: 0, shiftY: 0 },
+        chevron: { bleedX: 1 / 0.88 - 1, bleedY: 0, shift: "none", shiftX: 0, shiftY: 0 },
+    };
 
     /* Overrides accepted on the URL, so a wall can be retuned from the TV's address bar without
        touching the saved view configuration. */
@@ -68,6 +98,7 @@
         shape: "shape",
         animation: "animation",
         sizing: "sizing",
+        packing: "packing",
         header: "header",
         burnin: "burnIn",
     };
@@ -124,6 +155,8 @@
         this.rootUrl = root.dataset.rootUrl || "";
         this.refreshMs = Math.max(2000, (parseInt(root.dataset.refresh, 10) || 6) * 1000);
         this.minTileHeight = parseInt(root.dataset.minTileHeight, 10) || 110;
+        this.tileGap = Math.max(0, parseInt(root.dataset.gap, 10) || 0);
+        this.seamWidth = Math.max(0, parseInt(root.dataset.seam, 10) || 0);
         this.showBuildNumber = root.dataset.showBuildNumber === "true";
 
         this.tiles = new Map(); // full job name -> element
@@ -133,11 +166,13 @@
         this.clockSkew = 0; // server time minus browser time, so a wrong TV clock cannot lie
         this.scrollAnimation = null;
         this.pendingLayout = 0;
+        this.layoutRetries = 0;
         this.timer = 0;
     }
 
     Wall.prototype.start = function () {
         this.applyUrlOverrides();
+        this.applySpacing();
         this.applyCustomColors();
         this.refreshInk();
         this.bindControls();
@@ -146,7 +181,7 @@
         if (window.ResizeObserver) {
             new ResizeObserver(function () {
                 self.scheduleLayout();
-            }).observe(this.stage);
+            }).observe(this.scroller);
         } else {
             window.addEventListener("resize", function () {
                 self.scheduleLayout();
@@ -161,6 +196,7 @@
             }
         });
 
+        this.settleLayout();
         this.tickClock();
         window.setInterval(this.tickClock.bind(this), 10000);
         window.setInterval(this.tickProgress.bind(this), 500);
@@ -195,10 +231,26 @@
         if (refresh > 0) {
             this.refreshMs = Math.max(2000, refresh * 1000);
         }
+        var gap = parseInt(params.get("gap"), 10);
+        if (gap >= 0) {
+            this.tileGap = Math.min(64, gap);
+        }
+        var seam = parseInt(params.get("seam"), 10);
+        if (seam >= 0) {
+            this.seamWidth = Math.min(12, seam);
+        }
         var header = this.root.querySelector(".lw-header");
         if (header) {
             header.dataset.visible = this.root.dataset.showHeader === "false" ? "false" : "true";
         }
+    };
+
+    /* Gap and seam are two different things: the gap is empty background between tiles, the seam is
+       a hairline of background drawn inside each tile's own outline. At the default gap of zero the
+       seam is the only thing keeping a run of same-coloured neighbours countable. */
+    Wall.prototype.applySpacing = function () {
+        this.root.style.setProperty("--lw-gap", this.tileGap + "px");
+        this.root.style.setProperty("--lw-seam", this.seamWidth + "px");
     };
 
     /* Custom colours override whichever palette is selected, so you can start from a built-in one
@@ -254,6 +306,7 @@
                 var key = event.target.getAttribute("data-lw-preview");
                 self.root.dataset[key] = event.target.value;
                 self.refreshInk();
+                self.applySpacing();
                 self.scheduleLayout();
             });
         }
@@ -369,8 +422,14 @@
         anchor.href = this.rootUrl + data.url;
         anchor.setAttribute("role", "listitem");
 
+        // Two nested layers carrying the same silhouette: the outer one is the seam colour, the
+        // inner one is the fill, inset by the seam width. That is what makes the hairline follow
+        // the outline of a hexagon rather than the outline of its bounding box.
         var shape = document.createElement("span");
         shape.className = "lw-shape";
+
+        var face = document.createElement("span");
+        face.className = "lw-face";
 
         var effects = document.createElement("span");
         effects.className = "lw-fx";
@@ -379,16 +438,17 @@
         var label = document.createElement("span");
         label.className = "lw-label";
 
-        shape.appendChild(effects);
-        shape.appendChild(label);
+        face.appendChild(effects);
+        face.appendChild(label);
 
         if (this.showBuildNumber) {
             var badge = document.createElement("span");
             badge.className = "lw-badge";
             badge.setAttribute("aria-hidden", "true");
-            shape.appendChild(badge);
+            face.appendChild(badge);
         }
 
+        shape.appendChild(face);
         anchor.appendChild(shape);
         return anchor;
     };
@@ -501,6 +561,34 @@
         });
     };
 
+    /** Re-runs the layout shortly, up to a point, when the page was not measurable yet. */
+    Wall.prototype.retryLayout = function () {
+        var self = this;
+        if (this.layoutRetries >= 40) {
+            return;
+        }
+        this.layoutRetries++;
+        window.setTimeout(function () {
+            self.scheduleLayout();
+        }, 100);
+    };
+
+    /* Web fonts and stylesheets can land after the first layout and change every measurement, so
+       take another look once things have settled. Cheap, and it happens twice in a wall's life. */
+    Wall.prototype.settleLayout = function () {
+        var self = this;
+        [250, 1000, 3000].forEach(function (delay) {
+            window.setTimeout(function () {
+                self.scheduleLayout();
+            }, delay);
+        });
+        if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+            document.fonts.ready.then(function () {
+                self.scheduleLayout();
+            });
+        }
+    };
+
     Wall.prototype.layout = function () {
         var count = this.tiles.size;
         if (!count) {
@@ -509,74 +597,142 @@
         var width = this.scroller.clientWidth;
         var height = this.scroller.clientHeight;
         if (width < 10 || height < 10) {
+            // The stage has no usable size yet -- a font still loading, a stylesheet still
+            // arriving, a tab opened in the background. Giving up here would leave the wall
+            // permanently unlaid-out, with tiles at their default size on top of each other, so
+            // come back and try again rather than waiting for a resize that may never happen.
+            this.retryLayout();
             return;
         }
 
         var shape = this.root.dataset.shape || "rounded";
         var aspect = lookup(SHAPE_ASPECT, shape, 2);
-        var gap = parseFloat(window.getComputedStyle(this.root).getPropertyValue("--lw-gap")) || 8;
+        var gap = this.tileGap;
+
+        // A tessellating shape overhangs its cell, and the shifted line runs past the last row or
+        // column. Both have to come out of the space available before columns are chosen, or the
+        // edges of the wall get clipped.
+        var tess = this.root.dataset.packing === "grid" ? null : lookup(TESSELLATION, shape, null);
+        var extraX = tess ? tess.bleedX + (tess.shift === "row" ? tess.shiftX : 0) : 0;
+        var extraY = tess ? tess.bleedY + (tess.shift === "column" ? tess.shiftY : 0) : 0;
+
         var columns;
+        var rows;
+        var cellWidth;
+        var cellHeight;
 
         if (this.root.dataset.sizing === "scroll") {
             columns = Math.max(1, Math.min(count, Math.round(width / (this.minTileHeight * aspect))));
-            var rows = Math.ceil(count / columns);
-            var rowHeight = Math.max(this.minTileHeight, (height - gap * (rows - 1)) / rows);
-            this.root.style.setProperty("--lw-row-height", rowHeight + "px");
+            rows = Math.ceil(count / columns);
+            cellWidth = (width - gap * (columns - 1)) / (columns + extraX);
+            cellHeight = Math.max(this.minTileHeight, (height - gap * (rows - 1)) / (rows + extraY));
         } else {
-            columns = fitColumns(count, width, height, gap, aspect);
-            this.root.style.removeProperty("--lw-row-height");
+            columns = fitColumns(count, width, height, gap, aspect, extraX, extraY);
+            rows = Math.ceil(count / columns);
+            cellWidth = (width - gap * (columns - 1)) / (columns + extraX);
+            cellHeight = (height - gap * (rows - 1)) / (rows + extraY);
         }
+        if (!(cellWidth > 0) || !(cellHeight > 0)) {
+            return;
+        }
+
+        // Explicit pixel tracks rather than 1fr, so the grid can be smaller than its container and
+        // centred, leaving room for the overhang instead of running off the edge.
         this.root.style.setProperty("--lw-cols", columns);
+        this.grid.style.gridTemplateColumns = "repeat(" + columns + ", " + cellWidth + "px)";
+        this.grid.style.gridAutoRows = cellHeight + "px";
+        this.grid.style.width = columns * cellWidth + gap * (columns - 1) + "px";
+        this.grid.style.height = rows * cellHeight + gap * (rows - 1) + "px";
 
-        // Measure a real tile rather than trusting the arithmetic: borders, scrollbars and
-        // sub-pixel rounding all land here.
-        var first = this.grid.firstElementChild;
-        if (!first) {
-            return;
-        }
-        var box = first.getBoundingClientRect();
-        if (box.width < 4 || box.height < 4) {
-            return;
-        }
+        // Centre the whole footprint, overhang included. The bleed sticks out symmetrically, but a
+        // shifted line only ever runs past one edge, so "margin: auto" would centre the grid box and
+        // let the shifted half of the wall fall off the bottom.
+        var overhangTop = (tess ? tess.bleedY : 0) * cellHeight / 2;
+        var overhangLeft = (tess ? tess.bleedX : 0) * cellWidth / 2;
+        var overhangBottom =
+            overhangTop + (tess && tess.shift === "column" ? tess.shiftY * (cellHeight + gap) : 0);
+        var overhangRight =
+            overhangLeft + (tess && tess.shift === "row" ? tess.shiftX * (cellWidth + gap) : 0);
 
+        var gridWidth = columns * cellWidth + gap * (columns - 1);
+        var gridHeight = rows * cellHeight + gap * (rows - 1);
+        var left = (width - (gridWidth + overhangLeft + overhangRight)) / 2 + overhangLeft;
+        var top =
+            this.root.dataset.sizing === "scroll"
+                ? overhangTop
+                : (height - (gridHeight + overhangTop + overhangBottom)) / 2 + overhangTop;
+
+        this.grid.style.marginLeft = Math.max(0, left) + "px";
+        this.grid.style.marginTop = Math.max(0, top) + "px";
+
+        // A tessellating shape is bigger than its cell by exactly the overhang its geometry needs;
+        // everything else is simply the cell.
+        var shapeWidth = tess ? cellWidth * (1 + tess.bleedX) : cellWidth;
+        var shapeHeight = tess ? cellHeight * (1 + tess.bleedY) : cellHeight;
         if (lookup(SQUARE_SHAPES, shape, false)) {
-            this.root.style.setProperty("--lw-square", Math.min(box.width, box.height) + "px");
-        } else {
-            this.root.style.removeProperty("--lw-square");
+            shapeWidth = Math.min(cellWidth, cellHeight);
+            shapeHeight = shapeWidth;
         }
+        this.root.style.setProperty("--lw-shape-w", shapeWidth + "px");
+        this.root.style.setProperty("--lw-shape-h", shapeHeight + "px");
+        this.root.style.setProperty(
+            "--lw-shift-x",
+            (tess && tess.shift === "row" ? tess.shiftX * (cellWidth + gap) : 0) + "px"
+        );
+        this.root.style.setProperty(
+            "--lw-shift-y",
+            (tess && tess.shift === "column" ? tess.shiftY * (cellHeight + gap) : 0) + "px"
+        );
 
-        this.centreLastRow(count, columns);
-        this.resizeText(box, shape);
+        this.layoutRetries = 0;
+        this.placeTiles(count, columns, tess);
+        this.resizeText(shapeWidth, shapeHeight, shape);
         this.updateScrolling();
     };
 
-    /* A trailing half-empty row reads as a mistake when it is jammed against the left edge. */
-    Wall.prototype.centreLastRow = function (count, columns) {
+    /*
+     * Places every tile and marks the ones that slide half a cell.
+     *
+     * These two jobs have to happen together. A trailing part-row looks wrong jammed against the
+     * left edge, so it gets centred -- but centring moves those tiles to columns that no longer
+     * match their position in the DOM, and the interlock offset is decided by column parity. Work
+     * them out separately and the last row shifts the wrong way, landing half a row on top of the
+     * row above it.
+     *
+     * So a part-row is only centred when nothing is being shifted. Sliding it sideways would break
+     * the tessellation it is supposed to slot into anyway.
+     */
+    Wall.prototype.placeTiles = function (count, columns, tess) {
         var children = this.grid.children;
-        for (var i = 0; i < children.length; i++) {
-            children[i].style.gridColumnStart = "";
-        }
-        var remainder = count % columns;
-        if (remainder === 0 || columns === 1) {
-            return;
-        }
+        var shiftsColumns = tess && tess.shift === "column";
+        var shiftsRows = tess && tess.shift === "row";
+        var interlocking = shiftsColumns || shiftsRows;
+
+        var remainder = columns > 1 ? count % columns : 0;
         var firstOfLastRow = count - remainder;
-        var offset = Math.floor((columns - remainder) / 2) + 1;
-        if (children[firstOfLastRow]) {
-            children[firstOfLastRow].style.gridColumnStart = String(offset);
+        var offset = remainder && !interlocking ? Math.floor((columns - remainder) / 2) : 0;
+
+        for (var i = 0; i < children.length; i++) {
+            var element = children[i];
+            var inLastRow = remainder !== 0 && i >= firstOfLastRow;
+            var column = inLastRow ? offset + (i - firstOfLastRow) : i % columns;
+
+            element.style.gridColumnStart = inLastRow && i === firstOfLastRow && offset > 0 ? String(offset + 1) : "";
+
+            var line = shiftsColumns ? column : Math.floor(i / columns);
+            if (interlocking && line % 2 === 1) {
+                element.dataset.shift = "true";
+            } else {
+                delete element.dataset.shift;
+            }
         }
     };
 
-    Wall.prototype.resizeText = function (box, shape) {
+    Wall.prototype.resizeText = function (shapeWidth, shapeHeight, shape) {
         var inset = lookup(SHAPE_INSET, shape, 0.1);
-        var tileWidth = box.width;
-        var tileHeight = box.height;
-        if (lookup(SQUARE_SHAPES, shape, false)) {
-            tileWidth = Math.min(box.width, box.height);
-            tileHeight = tileWidth;
-        }
-        var availableWidth = tileWidth * (1 - inset * 2);
-        var availableHeight = tileHeight * (1 - inset * 2);
+        var seam = this.seamWidth;
+        var availableWidth = (shapeWidth - seam * 2) * (1 - inset * 2);
+        var availableHeight = (shapeHeight - seam * 2) * (1 - inset * 2);
 
         var font = "800 100px " + window.getComputedStyle(this.root).fontFamily;
         var cache = new Map();
@@ -632,13 +788,13 @@
      * preferred proportions, which is why a wall of circles lays out differently from a wall of
      * wide rectangles at the same job count.
      */
-    function fitColumns(count, width, height, gap, aspect) {
+    function fitColumns(count, width, height, gap, aspect, extraX, extraY) {
         var best = 0;
         var bestScore = -1;
         for (var columns = 1; columns <= count; columns++) {
             var rows = Math.ceil(count / columns);
-            var tileWidth = (width - gap * (columns - 1)) / columns;
-            var tileHeight = (height - gap * (rows - 1)) / rows;
+            var tileWidth = (width - gap * (columns - 1)) / (columns + (extraX || 0));
+            var tileHeight = (height - gap * (rows - 1)) / (rows + (extraY || 0));
             if (tileWidth < 8 || tileHeight < 8) {
                 continue;
             }
