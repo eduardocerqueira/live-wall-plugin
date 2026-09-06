@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question about using the plugin
+    url: https://github.com/eduardocerqueira/jenkins-live-wall/discussions
+    about: Ask here rather than opening an issue.

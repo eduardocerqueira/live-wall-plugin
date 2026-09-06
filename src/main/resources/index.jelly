@@ -1,0 +1,9 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core">
+  <div>
+    Adds a <b>Live Wall</b> view type: a full-screen wall of coloured tiles, one per job, scaled so
+    that every job fits on the screen at once. Built for the television in the corner of an office
+    rather than for a desk, so it carries job names and colour and very little else, never
+    paginates, and ships palettes chosen to stay readable on a large panel from across a room.
+  </div>
+</j:jelly>

@@ -1,0 +1,46 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:l="/lib/layout" xmlns:lw="/lib/livewall">
+  <l:layout title="${it.displayName}">
+    <st:include page="sidepanel.jelly" />
+    <l:main-panel>
+      <st:adjunct includes="io.jenkins.plugins.livewall.wall" />
+
+      <!-- Try a look against your real jobs before committing to it. Nothing here is saved: the
+           wall a television loads comes from the view configuration, or from URL parameters. -->
+      <div class="lw-preview-bar">
+        <button type="button" class="jenkins-button jenkins-button--primary" data-lw-action="fullscreen">
+          ${%Full screen}
+        </button>
+        <a class="jenkins-button" href="${rootURL}/${it.viewUrl}wall">${%Open kiosk page}</a>
+
+        <div class="jenkins-select">
+          <select class="jenkins-select__input" data-lw-preview="palette" aria-label="${%Palette}">
+            <j:forEach var="option" items="${it.paletteOptions}">
+              <option value="${option.id}">${option.displayName}</option>
+            </j:forEach>
+          </select>
+        </div>
+
+        <div class="jenkins-select">
+          <select class="jenkins-select__input" data-lw-preview="shape" aria-label="${%Shape}">
+            <j:forEach var="option" items="${it.shapeOptions}">
+              <option value="${option.id}">${option.displayName}</option>
+            </j:forEach>
+          </select>
+        </div>
+
+        <div class="jenkins-select">
+          <select class="jenkins-select__input" data-lw-preview="animation" aria-label="${%Animation}">
+            <j:forEach var="option" items="${it.animationOptions}">
+              <option value="${option.id}">${option.displayName}</option>
+            </j:forEach>
+          </select>
+        </div>
+
+        <span class="lw-hint">${%preview.hint}</span>
+      </div>
+
+      <lw:wall variant="embedded" />
+    </l:main-panel>
+  </l:layout>
+</j:jelly>

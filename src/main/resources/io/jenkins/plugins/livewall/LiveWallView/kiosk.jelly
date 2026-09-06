@@ -1,0 +1,15 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:lw="/lib/livewall">
+  <st:contentType value="text/html;charset=UTF-8" />
+  <html lang="en">
+    <head>
+      <title>${it.displayName}</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <meta name="robots" content="noindex, nofollow" />
+      <st:adjunct includes="io.jenkins.plugins.livewall.wall" />
+    </head>
+    <body class="lw-body">
+      <lw:wall variant="kiosk" />
+    </body>
+  </html>
+</j:jelly>

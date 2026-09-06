@@ -1,0 +1,27 @@
+# Shapes the changelog that "gh release create --generate-notes" writes for each release.
+# Label your pull requests and they land in the right section.
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+    authors:
+      - dependabot
+  categories:
+    - title: Breaking changes
+      labels: [breaking]
+    - title: New features
+      labels: [enhancement, feature]
+    - title: Palettes and shapes
+      labels: [palette, shape]
+    - title: Fixes
+      labels: [bug, fix]
+    - title: Accessibility
+      labels: [accessibility]
+    - title: Security
+      labels: [security]
+    - title: Dependencies
+      labels: [dependencies]
+    - title: Documentation
+      labels: [documentation]
+    - title: Everything else
+      labels: ["*"]

@@ -1,0 +1,55 @@
+name: CI
+
+# Every pull request has to go through this before it can be merged.
+# See docs/quality-bar.md for what "passing" means.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test (JDK ${{ matrix.jdk }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 17 is the floor for the 2.516 baseline; 21 is what most controllers now run.
+        jdk: [17, 21]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.jdk }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.jdk }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build, test and verify
+        run: mvn -B -ntp clean verify
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-jdk${{ matrix.jdk }}
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload the plugin
+        if: matrix.jdk == 21
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-wall-hpi
+          path: target/*.hpi
+          if-no-files-found: error

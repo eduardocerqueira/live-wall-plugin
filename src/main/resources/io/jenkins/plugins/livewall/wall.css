@@ -1,0 +1,705 @@
+/*
+ * Live Wall — styling for a Jenkins status radiator on a large, distant screen.
+ *
+ * Two rules shape everything below:
+ *
+ *  1. Colour carries the message, so fills are fully saturated and the ink on top of them is
+ *     chosen by live-wall.js for contrast rather than being fixed to white. Palettes are just sets
+ *     of custom properties; an administrator can override any of them from instance-wide custom CSS
+ *     by re-declaring, say, --lw-failure under .lw-root[data-palette="vivid"].
+ *
+ *  2. Nothing is sized in absolute units. live-wall.js measures the viewport, decides how many
+ *     columns make the tiles as large as possible, and writes --lw-cols and a per-tile font size.
+ *     That is what lets the wall show every job at once instead of paginating.
+ */
+
+/* ------------------------------------------------------------------ palettes */
+
+.lw-root {
+    /* Structure. Overridden per palette below. */
+    --lw-bg: #0a0c10;
+    --lw-fg: #e6ebf2;
+    --lw-muted: #8892a4;
+    --lw-gap: 8px;
+    --lw-radius: 12px;
+    --lw-edge: 0px; /* tile outline width; palettes that need separation raise this */
+    --lw-edge-color: transparent;
+    --lw-glow: 0; /* 0 or 1: whether fills bloom */
+    --lw-texture: 0; /* 0 or 1: whether failure/unstable get a hatch as a second cue */
+    --lw-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    /* Status fills. */
+    --lw-success: #1ed760;
+    --lw-failure: #ff2f45;
+    --lw-unstable: #ffb300;
+    --lw-aborted: #8d99ae;
+    --lw-notbuilt: #3d4657;
+    --lw-disabled: #262c38;
+}
+
+.lw-root[data-palette="neon"] {
+    --lw-bg: #000000;
+    --lw-fg: #eaf6ff;
+    --lw-muted: #7f8ea3;
+    --lw-glow: 1;
+    --lw-success: #00ff9c;
+    --lw-failure: #ff0059;
+    --lw-unstable: #ffd600;
+    --lw-aborted: #7c8899;
+    --lw-notbuilt: #232936;
+    --lw-disabled: #12161d;
+}
+
+.lw-root[data-palette="contrast"] {
+    --lw-bg: #000000;
+    --lw-fg: #ffffff;
+    --lw-muted: #b9b9b9;
+    --lw-edge: 3px;
+    --lw-edge-color: rgba(255, 255, 255, 0.85);
+    --lw-radius: 4px;
+    --lw-success: #00e400;
+    --lw-failure: #ff0000;
+    --lw-unstable: #ffff00;
+    --lw-aborted: #a8a8a8;
+    --lw-notbuilt: #4d4d4d;
+    --lw-disabled: #2b2b2b;
+}
+
+.lw-root[data-palette="daylight"] {
+    --lw-bg: #eef1f6;
+    --lw-fg: #0d1117;
+    --lw-muted: #5b6675;
+    --lw-edge: 2px;
+    --lw-edge-color: rgba(13, 17, 23, 0.18);
+    --lw-success: #087f3f;
+    --lw-failure: #cf0022;
+    --lw-unstable: #b87400;
+    --lw-aborted: #6b7280;
+    --lw-notbuilt: #b9c2d0;
+    --lw-disabled: #d7dde6;
+}
+
+/* Okabe-Ito derived: distinguishable under deuteranopia, protanopia and tritanopia. Failure and
+   unstable also get a hatch so that the wall still reads in greyscale or on a failing panel. */
+.lw-root[data-palette="colorsafe"] {
+    --lw-bg: #0a0c10;
+    --lw-fg: #e9eef5;
+    --lw-texture: 1;
+    --lw-success: #56b4e9;
+    --lw-failure: #d55e00;
+    --lw-unstable: #f0e442;
+    --lw-aborted: #999999;
+    --lw-notbuilt: #3a4353;
+    --lw-disabled: #242a35;
+}
+
+.lw-root[data-palette="midnight"] {
+    --lw-bg: #05070a;
+    --lw-fg: #c9d3e0;
+    --lw-muted: #6b7686;
+    --lw-success: #16995c;
+    --lw-failure: #c92a3d;
+    --lw-unstable: #b5820f;
+    --lw-aborted: #59626f;
+    --lw-notbuilt: #1e242e;
+    --lw-disabled: #11151b;
+}
+
+/* ------------------------------------------------------------------ shell */
+
+/* The dedicated kiosk document, which has no Jenkins chrome around it. */
+.lw-body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    overflow: hidden;
+}
+
+
+.lw-root {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    background: var(--lw-bg);
+    color: var(--lw-fg);
+    font-family: var(--lw-font);
+    overflow: hidden;
+}
+
+.lw-root *,
+.lw-root *::before,
+.lw-root *::after {
+    box-sizing: border-box;
+}
+
+/* Embedded in the normal Jenkins view page: tall enough to be useful, short enough to leave the
+   breadcrumbs reachable. */
+.lw-root--embedded {
+    height: clamp(360px, calc(100vh - 260px), 1400px);
+    border-radius: var(--lw-radius);
+}
+
+/* The dedicated /wall page, and anything the browser has taken full screen. */
+.lw-root--kiosk,
+.lw-root:fullscreen {
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    border-radius: 0;
+}
+
+/* A slow drift so a wall left on for months does not etch itself into the panel. */
+.lw-root[data-burn-in="true"] .lw-stage {
+    animation: lw-drift 1200s ease-in-out infinite;
+}
+
+@keyframes lw-drift {
+    0% {
+        transform: translate(0, 0);
+    }
+    25% {
+        transform: translate(7px, 5px);
+    }
+    50% {
+        transform: translate(0, 10px);
+    }
+    75% {
+        transform: translate(-7px, 5px);
+    }
+    100% {
+        transform: translate(0, 0);
+    }
+}
+
+/* ------------------------------------------------------------------ header */
+
+.lw-header {
+    display: flex;
+    align-items: baseline;
+    gap: clamp(12px, 2vw, 32px);
+    padding: clamp(6px, 1.2vh, 18px) clamp(10px, 1.5vw, 26px);
+    flex: 0 0 auto;
+}
+
+.lw-title {
+    margin: 0;
+    font-size: clamp(15px, 2.4vh, 34px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--lw-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lw-header[data-visible="false"] {
+    display: none;
+}
+
+.lw-counts {
+    display: flex;
+    gap: clamp(8px, 1.4vw, 22px);
+    margin-inline-start: auto;
+    font-size: clamp(13px, 2vh, 28px);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.lw-count {
+    display: none;
+    align-items: center;
+    gap: 0.45em;
+    color: var(--lw-muted);
+}
+
+.lw-count.lw-on {
+    display: inline-flex;
+}
+
+.lw-count::before {
+    content: "";
+    width: 0.62em;
+    height: 0.62em;
+    border-radius: 50%;
+    background: var(--lw-dot, var(--lw-muted));
+}
+
+.lw-count[data-status="failure"] {
+    --lw-dot: var(--lw-failure);
+    color: var(--lw-failure);
+}
+
+.lw-count[data-status="unstable"] {
+    --lw-dot: var(--lw-unstable);
+    color: var(--lw-unstable);
+}
+
+.lw-count[data-status="building"] {
+    --lw-dot: var(--lw-fg);
+    color: var(--lw-fg);
+}
+
+.lw-count[data-status="success"] {
+    --lw-dot: var(--lw-success);
+}
+
+.lw-clock {
+    font-size: clamp(13px, 2vh, 28px);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--lw-muted);
+}
+
+/* ------------------------------------------------------------------ grid */
+
+.lw-stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    padding: 0 clamp(6px, 0.8vw, 16px) clamp(6px, 0.8vw, 16px);
+}
+
+.lw-scroller {
+    height: 100%;
+    overflow: hidden;
+}
+
+.lw-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--lw-cols, 4), minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap: var(--lw-gap);
+    height: 100%;
+}
+
+/* In scroll mode the grid is taller than its scroller and gets animated instead of squashed. */
+.lw-root[data-sizing="scroll"] .lw-grid {
+    height: auto;
+    grid-auto-rows: var(--lw-row-height, 110px);
+}
+
+/* ------------------------------------------------------------------ tiles */
+
+.lw-tile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    text-decoration: none;
+    color: inherit;
+}
+
+.lw-tile:focus-visible {
+    outline: 3px solid var(--lw-fg);
+    outline-offset: 3px;
+}
+
+.lw-shape {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--lw-fill, var(--lw-notbuilt));
+    color: var(--lw-ink, #000);
+    border-radius: var(--lw-shape-radius, 0);
+    box-shadow: inset 0 0 0 var(--lw-edge) var(--lw-edge-color);
+    transition:
+        background-color 420ms ease,
+        color 420ms ease;
+}
+
+/* Status to fill. --lw-ink-* are written by live-wall.js from the resolved fill colour. */
+.lw-tile[data-status="success"] {
+    --lw-fill: var(--lw-success);
+    --lw-ink: var(--lw-ink-success, #000);
+}
+
+.lw-tile[data-status="failure"] {
+    --lw-fill: var(--lw-failure);
+    --lw-ink: var(--lw-ink-failure, #fff);
+}
+
+.lw-tile[data-status="unstable"] {
+    --lw-fill: var(--lw-unstable);
+    --lw-ink: var(--lw-ink-unstable, #000);
+}
+
+.lw-tile[data-status="aborted"] {
+    --lw-fill: var(--lw-aborted);
+    --lw-ink: var(--lw-ink-aborted, #000);
+}
+
+.lw-tile[data-status="notbuilt"] {
+    --lw-fill: var(--lw-notbuilt);
+    --lw-ink: var(--lw-ink-notbuilt, #fff);
+}
+
+.lw-tile[data-status="disabled"] {
+    --lw-fill: var(--lw-disabled);
+    --lw-ink: var(--lw-ink-disabled, #fff);
+    opacity: 0.75;
+}
+
+.lw-root[data-palette="neon"] .lw-tile[data-status="failure"],
+.lw-root[data-palette="neon"] .lw-tile[data-status="success"],
+.lw-root[data-palette="neon"] .lw-tile[data-status="unstable"] {
+    filter: drop-shadow(0 0 calc(var(--lw-glow) * 14px) var(--lw-fill));
+}
+
+/* Second, non-colour cue for the colour-blind-safe palette. */
+.lw-root[data-palette="colorsafe"] .lw-tile[data-status="failure"] .lw-shape::before,
+.lw-root[data-palette="colorsafe"] .lw-tile[data-status="unstable"] .lw-shape::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(0, 0, 0, 0.16) 0,
+        rgba(0, 0, 0, 0.16) 6px,
+        transparent 6px,
+        transparent 14px
+    );
+    pointer-events: none;
+}
+
+.lw-root[data-palette="colorsafe"] .lw-tile[data-status="unstable"] .lw-shape::before {
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(0, 0, 0, 0.16) 0,
+        rgba(0, 0, 0, 0.16) 3px,
+        transparent 3px,
+        transparent 12px
+    );
+}
+
+/* ------------------------------------------------------------------ label */
+
+.lw-label {
+    position: relative;
+    z-index: 2;
+    max-width: calc(100% - var(--lw-text-inset, 12%) * 2);
+    max-height: calc(100% - var(--lw-text-inset, 12%) * 2);
+    font-size: var(--lw-font-size, 16px);
+    font-weight: 800;
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    text-align: center;
+    overflow-wrap: anywhere;
+    hyphens: none;
+}
+
+.lw-badge {
+    position: absolute;
+    z-index: 2;
+    inset-block-end: 0.35em;
+    inset-inline-end: 0.5em;
+    font-size: calc(var(--lw-font-size, 16px) * 0.42);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.62;
+}
+
+.lw-root[data-shape="cross"] .lw-tile .lw-badge,
+.lw-root[data-shape="diamond"] .lw-tile .lw-badge,
+.lw-root[data-shape="circle"] .lw-tile .lw-badge {
+    display: none; /* nowhere sensible to put it inside these silhouettes */
+}
+
+/* ------------------------------------------------------------------ shapes */
+
+/* --lw-text-inset must stay in step with SHAPE_INSET in live-wall.js. */
+
+.lw-root[data-shape="rectangle"] .lw-tile {
+    --lw-shape-radius: 0;
+    --lw-text-inset: 7%;
+}
+
+.lw-root[data-shape="rounded"] .lw-tile {
+    --lw-shape-radius: clamp(4px, 12%, 22px);
+    --lw-text-inset: 8%;
+}
+
+.lw-root[data-shape="square"] .lw-tile {
+    --lw-shape-radius: 0;
+    --lw-text-inset: 7%;
+}
+
+.lw-root[data-shape="circle"] .lw-tile {
+    --lw-shape-radius: 50%;
+    --lw-text-inset: 18%;
+}
+
+.lw-root[data-shape="octagon"] .lw-tile {
+    --lw-text-inset: 13%;
+}
+
+.lw-root[data-shape="octagon"] .lw-tile .lw-shape {
+    clip-path: polygon(24% 0, 76% 0, 100% 24%, 100% 76%, 76% 100%, 24% 100%, 0 76%, 0 24%);
+}
+
+.lw-root[data-shape="hexagon"] .lw-tile {
+    --lw-text-inset: 16%;
+}
+
+.lw-root[data-shape="hexagon"] .lw-tile .lw-shape {
+    clip-path: polygon(22% 0, 78% 0, 100% 50%, 78% 100%, 22% 100%, 0 50%);
+}
+
+.lw-root[data-shape="diamond"] .lw-tile {
+    --lw-text-inset: 26%;
+}
+
+.lw-root[data-shape="diamond"] .lw-tile .lw-shape {
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.lw-root[data-shape="parallelogram"] .lw-tile {
+    --lw-text-inset: 14%;
+}
+
+.lw-root[data-shape="parallelogram"] .lw-tile .lw-shape {
+    clip-path: polygon(11% 0, 100% 0, 89% 100%, 0 100%);
+}
+
+.lw-root[data-shape="chevron"] .lw-tile {
+    --lw-text-inset: 14%;
+}
+
+.lw-root[data-shape="chevron"] .lw-tile .lw-shape {
+    clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%);
+}
+
+.lw-root[data-shape="cross"] .lw-tile {
+    --lw-text-inset: 30%;
+}
+
+.lw-root[data-shape="cross"] .lw-tile .lw-shape {
+    clip-path: polygon(
+        32% 0,
+        68% 0,
+        68% 32%,
+        100% 32%,
+        100% 68%,
+        68% 68%,
+        68% 100%,
+        32% 100%,
+        32% 68%,
+        0 68%,
+        0 32%,
+        32% 32%
+    );
+}
+
+/* Square silhouettes keep their proportions inside whatever cell the grid gives them.
+   --lw-square is the measured min(cell width, cell height), written by live-wall.js. */
+.lw-root[data-shape="square"] .lw-shape,
+.lw-root[data-shape="circle"] .lw-shape,
+.lw-root[data-shape="diamond"] .lw-shape,
+.lw-root[data-shape="cross"] .lw-shape {
+    flex: 0 0 auto;
+    width: var(--lw-square, 100%);
+    height: var(--lw-square, 100%);
+}
+
+/* ------------------------------------------------------------------ in-progress motion */
+
+.lw-fx {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.lw-tile[data-building="true"] .lw-fx {
+    opacity: 1;
+}
+
+/* Every animation is layered over the status colour, never replacing it: a build running on a
+   broken job still shows as broken. */
+
+/* progress: a determinate fill driven from the estimated duration by live-wall.js */
+.lw-root[data-animation="progress"] .lw-tile[data-building="true"] .lw-fx {
+    inset: auto 0 0 0;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.38));
+    border-inline-end: 3px solid rgba(255, 255, 255, 0.85);
+    transition: width 900ms linear;
+}
+
+/* ...falling back to stripes once a build overruns its estimate, or when there is no estimate */
+.lw-root[data-animation="progress"] .lw-tile[data-building="true"][data-indeterminate="true"] .lw-fx {
+    width: 100%;
+    border-inline-end: 0;
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(255, 255, 255, 0.26) 0,
+        rgba(255, 255, 255, 0.26) 14px,
+        transparent 14px,
+        transparent 28px
+    );
+    background-size: 200% 100%;
+    animation: lw-march 1.1s linear infinite;
+    transition: none;
+}
+
+.lw-root[data-animation="stripes"] .lw-tile[data-building="true"] .lw-fx {
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(255, 255, 255, 0.28) 0,
+        rgba(255, 255, 255, 0.28) 14px,
+        transparent 14px,
+        transparent 28px
+    );
+    background-size: 200% 100%;
+    animation: lw-march 1.1s linear infinite;
+}
+
+.lw-root[data-animation="sweep"] .lw-tile[data-building="true"] .lw-fx {
+    background: linear-gradient(
+        100deg,
+        transparent 20%,
+        rgba(255, 255, 255, 0.55) 50%,
+        transparent 80%
+    );
+    background-size: 260% 100%;
+    animation: lw-sweep 1.8s ease-in-out infinite;
+}
+
+.lw-root[data-animation="pulse"] .lw-tile[data-building="true"] .lw-fx {
+    background: rgba(255, 255, 255, 0.34);
+    animation: lw-pulse 1.5s ease-in-out infinite;
+}
+
+/* Always present while building, whatever the animation: a bright edge that survives being
+   photographed, screenshotted, or looked at from a very long way away. */
+.lw-tile[data-building="true"] .lw-shape::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 max(3px, 0.035em) rgba(255, 255, 255, 0.9);
+}
+
+/* Queued but not yet started: dashed edge, no fill motion. */
+.lw-tile[data-queued="true"]:not([data-building="true"]) .lw-shape::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    z-index: 3;
+    pointer-events: none;
+    border: 2px dashed rgba(255, 255, 255, 0.55);
+    animation: lw-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes lw-march {
+    to {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes lw-sweep {
+    0% {
+        background-position: 160% 0;
+    }
+    100% {
+        background-position: -60% 0;
+    }
+}
+
+@keyframes lw-pulse {
+    0%,
+    100% {
+        opacity: 0.15;
+    }
+    50% {
+        opacity: 0.75;
+    }
+}
+
+@keyframes lw-breathe {
+    0%,
+    100% {
+        opacity: 0.3;
+    }
+    50% {
+        opacity: 0.9;
+    }
+}
+
+/* ------------------------------------------------------------------ states */
+
+.lw-message {
+    display: none;
+    position: absolute;
+    inset: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6em;
+    text-align: center;
+    padding: 2em;
+    font-size: clamp(16px, 3vh, 40px);
+    font-weight: 600;
+    color: var(--lw-muted);
+}
+
+.lw-message.lw-on {
+    display: flex;
+}
+
+.lw-banner {
+    display: none;
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: 10;
+    padding: 0.5em 1em;
+    text-align: center;
+    font-size: clamp(13px, 1.8vh, 24px);
+    font-weight: 700;
+    color: #fff;
+    background: var(--lw-failure);
+}
+
+.lw-banner.lw-on {
+    display: block;
+}
+
+/* ------------------------------------------------------------------ preview bar */
+
+/* Only on the embedded page: try palettes and shapes against your real jobs before saving them. */
+.lw-preview-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-block-end: 12px;
+}
+
+.lw-preview-bar .lw-hint {
+    color: var(--lw-muted, #666);
+    font-size: 0.85em;
+}
+
+/* ------------------------------------------------------------------ motion preferences */
+
+@media (prefers-reduced-motion: reduce) {
+    .lw-root .lw-fx,
+    .lw-root .lw-shape::after,
+    .lw-root .lw-stage {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    .lw-root[data-animation="progress"] .lw-tile[data-building="true"] .lw-fx {
+        transition: none !important;
+    }
+}

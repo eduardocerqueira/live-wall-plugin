@@ -1,0 +1,54 @@
+name: Bug report
+description: Something on the wall is wrong, unreadable or missing.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Layout and readability problems are almost always about how many jobs are in the view and
+        how big the screen is, so please fill those in even if they seem irrelevant.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: And what you expected instead.
+    validations:
+      required: true
+
+  - type: input
+    id: jobs
+    attributes:
+      label: How many jobs are in the view
+      placeholder: "about 130"
+    validations:
+      required: true
+
+  - type: input
+    id: screen
+    attributes:
+      label: Screen and browser
+      description: Resolution, and the browser the wall runs in.
+      placeholder: "3840x2160 TV, Chrome 141 in kiosk mode"
+    validations:
+      required: true
+
+  - type: input
+    id: settings
+    attributes:
+      label: Palette, shape, animation and sizing
+      placeholder: "vivid, octagon, progress, fit"
+
+  - type: input
+    id: versions
+    attributes:
+      label: Jenkins and plugin versions
+      placeholder: "Jenkins 2.516.3, Live Wall 1.0.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: A photo of the actual screen is often more useful than a browser screenshot.

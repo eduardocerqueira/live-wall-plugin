@@ -1,0 +1,158 @@
+# Live Wall
+
+[![CI](https://github.com/eduardocerqueira/jenkins-live-wall/actions/workflows/ci.yml/badge.svg)](https://github.com/eduardocerqueira/jenkins-live-wall/actions/workflows/ci.yml)
+[![CVE scan](https://github.com/eduardocerqueira/jenkins-live-wall/actions/workflows/cve-scan.yml/badge.svg)](https://github.com/eduardocerqueira/jenkins-live-wall/actions/workflows/cve-scan.yml)
+[![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue.svg)](LICENSE)
+
+**A Jenkins view that turns your jobs into a wall of big coloured tiles, built for the television in
+the corner of the office.**
+
+```bash
+./scripts/demo.sh          # a local Jenkins, this plugin, and 20 sample jobs — in one command
+```
+
+---
+
+## Why
+
+Inspired by the excellent [Build Monitor plugin](https://plugins.jenkins.io/build-monitor-plugin/),
+which pioneered the idea. Live Wall is a rethink of the same idea for one specific situation: a
+large screen that nobody is standing next to.
+
+That leads to three promises, and they are the whole design.
+
+### Everything fits
+
+There is no pagination, and there never will be. Tiles are measured against your actual screen and
+scaled so that every job in the view is visible at the same time. A job you can only see half the
+time is a job nobody sees.
+
+### Colour carries the message
+
+A tile has a job name and a colour. That is it. No commit messages, no durations, no avatars — at
+four metres you cannot read them anyway, and they cost the space the job name needs.
+
+The palettes are fully saturated rather than pastel, and the text colour on each tile is chosen from
+the **measured contrast ratio** against its fill, so it stays legible whatever colours you pick —
+including ones you invent.
+
+### Motion means something
+
+A building job fills up in step with its estimated duration, and falls back to indeterminate stripes
+the moment it overruns that estimate. The animation never lies about how far along a build is.
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/eduardocerqueira/jenkins-live-wall.git
+cd jenkins-live-wall
+./scripts/demo.sh
+```
+
+Two minutes later you have a local Jenkins with the plugin installed, twenty sample jobs in a
+realistic spread of states, and a URL to open. Use `--jobs 150` if you want to see what a busy
+controller looks like. Full details in [docs/demo.md](docs/demo.md).
+
+### On your own Jenkins
+
+1. Download `live-wall-<version>.hpi` from
+   [Releases](https://github.com/eduardocerqueira/jenkins-live-wall/releases), or build it with
+   `mvn clean package`.
+2. **Manage Jenkins → Plugins → Advanced settings → Deploy Plugin**, upload it, restart.
+3. **New View →** name it **→ Live Wall**, then pick your jobs the way you always do.
+4. Point the television at **`…/view/<name>/wall`** — the kiosk page, with no Jenkins chrome on it
+   at all. The **Full screen** button on the view page does the same for a browser you are already
+   sitting in front of.
+
+Requires **Jenkins 2.516.3 or newer**.
+
+---
+
+## What you can change
+
+| | |
+| --- | --- |
+| **Palettes** | Vivid · Neon · High contrast · Daylight · Colour-blind safe · Midnight, plus per-colour overrides on top of any of them |
+| **Shapes** | Rectangle · Rounded · Square · Circle · Octagon · Hexagon · Diamond · Parallelogram · Chevron · Cross |
+| **Animations** | Progress fill · Sweep · Stripes · Pulse · None |
+| **Contents** | All jobs, or only problems — an alert board where an empty screen means everything is fine |
+| **Order** | Name (stable positions) · Status (problems top left) · Most recent · View order |
+| **Labels** | Folder paths on or off, and a regex to strip the noise: `^ci-\|-pipeline$` turns `ci-decision-control-pipeline` into `decision-control`, and lets it be drawn twice as large |
+| **Sizing** | Fit everything on one screen, or hold a readable size and scroll continuously |
+| **Panel care** | Optional slow drift to protect OLED and plasma screens from burn-in |
+
+Try any of it without saving by putting it in the URL — handy for a screen you cannot comfortably
+type on:
+
+```
+…/view/pipelines/wall?palette=neon&shape=octagon&refresh=10&header=0
+```
+
+The view page also has a preview bar with drop-downs, against your real jobs.
+
+Every setting is documented in **[docs/configuration.md](docs/configuration.md)**.
+
+---
+
+## Accessibility and unattended operation
+
+- The **colour-blind safe** palette uses blue and orange instead of green and red, and adds a hatch
+  pattern to failing and unstable tiles, so status never depends on hue alone.
+- Every animation is suppressed for viewers whose browser asks for reduced motion.
+- Losing contact with Jenkins raises a banner instead of quietly showing stale colours.
+- The clock in the header is a cheap way to tell at a glance that the screen has not frozen.
+- A wall in a hidden browser tab backs off automatically, so a forgotten tab is not a load problem.
+
+---
+
+## How it works
+
+The server renders an empty shell and then answers `…/view/<name>/wallData` with a small JSON
+document — one object per job, carrying a label, a status, and raw timestamps for anything building.
+Everything else happens in the browser, which is what lets a wall sit open for months without
+reloading. That endpoint respects permissions: jobs you cannot read are not in it.
+
+Three pieces of that browser code are worth knowing about, all in
+[`wall.js`](src/main/resources/io/jenkins/plugins/livewall/wall.js):
+
+| | |
+| --- | --- |
+| `fitColumns()` | Scores every possible column count by the size of the largest tile it would allow, and picks the winner. This is what replaces pagination. |
+| `fitFontSize()` | Measures the real glyphs on a canvas and binary-searches the largest font size at which a job name still fits its tile, breaking at spaces, hyphens, underscores and slashes. |
+| `inkFor()` | Computes the WCAG relative luminance of each status colour and picks black or white text from the contrast ratio. |
+
+---
+
+## Documentation
+
+| | |
+| --- | --- |
+| [Trying it locally](docs/demo.md) | The one-command demo script, and how to drive it |
+| [Building, testing, installing](docs/building.md) | Development loop, running the tests, installing into your own Jenkins |
+| [Configuration](docs/configuration.md) | Every setting, URL parameters, JCasC, the JSON endpoint |
+| [Contributing](docs/CONTRIBUTING.md) | Issues, pull requests, adding palettes and shapes |
+| [The bar](docs/quality-bar.md) | All tests passing, zero known CVEs — for every pull request |
+
+---
+
+## Contributing
+
+Issues and pull requests are welcome. Read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) first —
+especially the short list of things this plugin deliberately does not do.
+
+Every pull request must have **all tests passing** and a **CVE scan reporting zero known
+vulnerabilities**. Both are enforced by CI; the security scan also runs every Sunday morning,
+because the code stops changing but the vulnerability database does not.
+
+---
+
+## Licence
+
+[Apache License 2.0](LICENSE).
+
+The job picker in the view configuration form is adapted from Jenkins core
+(`hudson/model/ListView/configure-entries.jelly`, MIT licensed). Thanks again to
+[Build Monitor](https://plugins.jenkins.io/build-monitor-plugin/) for showing what a Jenkins
+radiator should feel like.

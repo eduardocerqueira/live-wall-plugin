@@ -1,0 +1,3 @@
+<div>
+  A regular expression whose matches are removed from every tile label. Job names in a real Jenkins tend to share long prefixes and suffixes that carry no information on a wall; stripping them leaves more room for the part that differs, and lets the text be drawn larger. For example <code>^ci-|-pipeline$</code> turns <code>ci-decision-control-pipeline</code> into <code>decision-control</code>. Leftover separators are tidied up, and a pattern that would erase a name entirely is ignored for that job.
+</div>

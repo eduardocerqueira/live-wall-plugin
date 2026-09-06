@@ -1,0 +1,52 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
+  <st:documentation>
+    The wall itself: a shell of empty containers, plus every setting the view carries, handed to
+    live-wall.js as data attributes. No job data is rendered server-side, because the page has to
+    keep itself up to date for months without reloading.
+
+    <st:attribute name="variant" use="required">
+      "kiosk" for the standalone full-screen page, "embedded" for the one inside the Jenkins view.
+    </st:attribute>
+  </st:documentation>
+
+  <div class="lw-root lw-root--${variant}"
+       data-palette="${it.palette.id}"
+       data-shape="${it.shape.id}"
+       data-animation="${it.animation.id}"
+       data-sizing="${it.sizing.id}"
+       data-burn-in="${it.burnInProtection}"
+       data-show-header="${it.showHeader}"
+       data-show-build-number="${it.showBuildNumber}"
+       data-refresh="${it.refreshSeconds}"
+       data-min-tile-height="${it.minTileHeight}"
+       data-empty-message="${it.emptyMessage}"
+       data-root-url="${rootURL}/"
+       data-data-url="${rootURL}/${it.viewUrl}wallData"
+       data-color-background="${it.customBackground}"
+       data-color-success="${it.customSuccess}"
+       data-color-failure="${it.customFailure}"
+       data-color-unstable="${it.customUnstable}"
+       data-color-aborted="${it.customAborted}"
+       data-color-idle="${it.customIdle}">
+
+    <header class="lw-header" data-visible="${it.showHeader}">
+      <h1 class="lw-title">${it.displayName}</h1>
+      <div class="lw-counts">
+        <span class="lw-count" data-status="failure"></span>
+        <span class="lw-count" data-status="unstable"></span>
+        <span class="lw-count" data-status="building"></span>
+        <span class="lw-count" data-status="success"></span>
+      </div>
+      <div class="lw-clock"></div>
+    </header>
+
+    <div class="lw-stage">
+      <div class="lw-banner" role="status" aria-live="polite"></div>
+      <div class="lw-scroller">
+        <div class="lw-grid" role="list"></div>
+      </div>
+      <div class="lw-message lw-on">${%Loading}</div>
+    </div>
+  </div>
+</j:jelly>

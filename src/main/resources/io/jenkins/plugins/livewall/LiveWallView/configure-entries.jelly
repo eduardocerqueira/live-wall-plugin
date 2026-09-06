@@ -1,0 +1,139 @@
+<?jelly escape-by-default='true'?>
+<!--
+  View configuration for a Live Wall.
+
+  The "Jobs" section is deliberately the same job picker people already know from a list view: it is
+  adapted from hudson/model/ListView/configure-entries.jelly in Jenkins core (MIT licensed,
+  Copyright (c) 2004-2010 Sun Microsystems, Inc., Kohsuke Kawaguchi). The Columns section that core
+  offers is left out on purpose, since a wall draws tiles rather than a table.
+-->
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:f="/lib/form">
+  <st:adjunct includes="hudson.model.ListView.configure-entries-resources" />
+
+  <f:section title="${%Jobs}">
+    <f:entry field="recurse">
+      <f:checkbox title="${%Recurse in subfolders}" id="recurse" />
+    </f:entry>
+
+    <d:taglib uri="local">
+      <d:tag name="checkbox">
+        <f:checkbox name="item_${job.getRelativeNameFromGroup(it.ownerItemGroup)}"
+                    checked="${it.jobNamesContains(job)}"
+                    title="${job.displayName}"
+                    tooltip="${!job.fullName.equals(job.displayName) ? job.fullName : null}"
+                    json="true" />
+        <j:if test="${job.getItems().size() gt 0}">
+          <div class="listview-jobs listview-jobs--nested" style="${it.recurse ? '' : 'display: none'}">
+            <j:forEach var="job" items="${job.getItems()}">
+              <local:checkbox xmlns:local="local" job="${job}" />
+            </j:forEach>
+          </div>
+        </j:if>
+      </d:tag>
+    </d:taglib>
+
+    <f:entry>
+      <div class="listview-jobs" xmlns:local="local">
+        <j:forEach var="job" items="${it.ownerItemGroup.getItems()}">
+          <local:checkbox job="${job}" />
+        </j:forEach>
+      </div>
+    </f:entry>
+
+    <f:optionalBlock name="useincluderegex" title="${%Use a regular expression to include jobs into the view}"
+                     checked="${it.includeRegex != null}" help="/help/view-config/includeregex.html">
+      <f:entry title="${%Regular expression}">
+        <f:textbox name="includeRegex" field="includeRegex" />
+      </f:entry>
+    </f:optionalBlock>
+  </f:section>
+
+  <j:if test="${it.hasJobFilterExtensions()}">
+    <f:section title="${%Filters}">
+      <f:repeatableHeteroProperty field="jobFilters" hasHeader="true" addCaption="${%Add Job Filter}" />
+    </f:section>
+  </j:if>
+
+  <f:section title="${%Look}">
+    <f:entry title="${%Colour palette}" field="palette">
+      <f:select value="${it.palette.id}" />
+    </f:entry>
+
+    <f:advanced title="${%Override individual colours}">
+      <f:entry title="${%Background}" field="customBackground">
+        <f:textbox placeholder="#0a0c10" />
+      </f:entry>
+      <f:entry title="${%Success}" field="customSuccess">
+        <f:textbox placeholder="#1ed760" />
+      </f:entry>
+      <f:entry title="${%Failure}" field="customFailure">
+        <f:textbox placeholder="#ff2f45" />
+      </f:entry>
+      <f:entry title="${%Unstable}" field="customUnstable">
+        <f:textbox placeholder="#ffb300" />
+      </f:entry>
+      <f:entry title="${%Aborted}" field="customAborted">
+        <f:textbox placeholder="#8d99ae" />
+      </f:entry>
+      <f:entry title="${%Never built or disabled}" field="customIdle">
+        <f:textbox placeholder="#3d4657" />
+      </f:entry>
+    </f:advanced>
+
+    <f:entry title="${%Tile shape}" field="shape">
+      <f:select value="${it.shape.id}" />
+    </f:entry>
+
+    <f:entry title="${%In-progress animation}" field="animation">
+      <f:select value="${it.animation.id}" />
+    </f:entry>
+
+    <f:entry field="burnInProtection">
+      <f:checkbox title="${%Drift the wall slowly to protect the panel}" />
+    </f:entry>
+  </f:section>
+
+  <f:section title="${%Contents}">
+    <f:entry title="${%Show}" field="statusScope">
+      <f:select value="${it.statusScope.id}" />
+    </f:entry>
+
+    <f:entry title="${%Order}" field="sortBy">
+      <f:select value="${it.sortBy.id}" />
+    </f:entry>
+
+    <f:entry field="hideDisabled">
+      <f:checkbox title="${%Hide disabled jobs}" />
+    </f:entry>
+
+    <f:entry field="showHeader">
+      <f:checkbox title="${%Show the header with the view name, counts and clock}" />
+    </f:entry>
+
+    <f:entry field="showFolderPath">
+      <f:checkbox title="${%Include folder names in the tile label}" />
+    </f:entry>
+
+    <f:entry field="showBuildNumber">
+      <f:checkbox title="${%Show the build number on each tile}" />
+    </f:entry>
+
+    <f:entry title="${%Strip from job names}" field="nameReplaceRegex">
+      <f:textbox placeholder="^ci-|-pipeline$" />
+    </f:entry>
+  </f:section>
+
+  <f:section title="${%Sizing}">
+    <f:entry title="${%When jobs do not fit}" field="sizing">
+      <f:select value="${it.sizing.id}" />
+    </f:entry>
+
+    <f:entry title="${%Minimum tile height (pixels)}" field="minTileHeight">
+      <f:number clazz="positive-number" min="24" max="600" step="1" />
+    </f:entry>
+
+    <f:entry title="${%Refresh every (seconds)}" field="refreshSeconds">
+      <f:number clazz="positive-number" min="2" max="3600" step="1" />
+    </f:entry>
+  </f:section>
+</j:jelly>

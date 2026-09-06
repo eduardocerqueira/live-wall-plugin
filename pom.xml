@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.jenkins-ci.plugins</groupId>
+    <artifactId>plugin</artifactId>
+    <version>5.31</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>io.jenkins.plugins</groupId>
+  <artifactId>live-wall</artifactId>
+  <version>${revision}${changelist}</version>
+  <packaging>hpi</packaging>
+
+  <name>Live Wall</name>
+  <description>Full-screen, high-contrast radiator of Jenkins job status for office TVs and big monitors. No pagination, no clutter: just job names, vivid colours and motion.</description>
+  <url>https://github.com/${gitHubRepo}</url>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>eduardocerqueira</id>
+      <name>Eduardo Cerqueira</name>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/${gitHubRepo}.git</connection>
+    <developerConnection>scm:git:git@github.com:${gitHubRepo}.git</developerConnection>
+    <url>https://github.com/${gitHubRepo}</url>
+    <tag>${scmTag}</tag>
+  </scm>
+
+  <properties>
+    <revision>1.0</revision>
+    <changelist>-SNAPSHOT</changelist>
+    <gitHubRepo>eduardocerqueira/jenkins-live-wall</gitHubRepo>
+
+    <!-- Jenkins baseline. Keep roughly one year behind the newest LTS so the
+         plugin installs on the controllers people actually run. -->
+    <jenkins.baseline>2.516</jenkins.baseline>
+    <jenkins.version>${jenkins.baseline}.3</jenkins.version>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>repo.jenkins-ci.org</id>
+      <url>https://repo.jenkins-ci.org/public/</url>
+    </repository>
+  </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>repo.jenkins-ci.org</id>
+      <url>https://repo.jenkins-ci.org/public/</url>
+    </pluginRepository>
+  </pluginRepositories>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.jenkins.tools.bom</groupId>
+        <artifactId>bom-${jenkins.baseline}.x</artifactId>
+        <version>6210.v69ea_fd8a_f010</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <!-- No plugin dependencies: everything the wall needs is in Jenkins core. The BOM above is
+       imported anyway so that any future dependency picks a version consistent with the baseline. -->
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <!-- A wall never talks to an agent, so the test controllers do not need a listener.
+                 Turning it off also avoids a shutdown hang on machines whose hostname resolves to
+                 an address they cannot connect back to, such as a laptop on a VPN. -->
+            <jenkins.model.Jenkins.slaveAgentPort>-1</jenkins.model.Jenkins.slaveAgentPort>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

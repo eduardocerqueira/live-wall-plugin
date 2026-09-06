@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest something that would make the wall clearer.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before writing: some things are deliberately absent from this plugin, and are listed under
+        "What this plugin is not" in [docs/CONTRIBUTING.md](../blob/main/docs/CONTRIBUTING.md).
+        Pagination and per-tile build detail are the two big ones.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is hard to see today
+      description: Describe the situation in front of the screen, not the feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+    validations:
+      required: true
+
+  - type: input
+    id: distance
+    attributes:
+      label: How far from the screen are people usually standing
+      placeholder: "four or five metres, open-plan office"
