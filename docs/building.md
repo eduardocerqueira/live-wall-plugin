@@ -2,8 +2,9 @@
 
 ## What you need
 
-- **JDK 17 or 21.** The plugin targets Java 17 (the floor for the Jenkins 2.516 baseline) and is
-  tested on both in CI.
+- **JDK 21 or newer.** Required both to build and to run: the 2.555 baseline compiles to Java 21
+  bytecode, so the plugin will not load on a controller running Java 17 even if its Jenkins version
+  is new enough. CI builds on 21 and 25.
 - **Maven 3.9** or newer.
 
 Check both:
@@ -108,7 +109,7 @@ progress fill tracking it properly.
 3. Under **Deploy Plugin**, choose the `.hpi` file and press **Deploy**.
 4. Restart Jenkins when it offers to.
 
-Requires **Jenkins 2.516.3 or newer**.
+Requires **Jenkins 2.555.3 or newer**, running on **Java 21 or newer**.
 
 To upgrade, deploy the newer `.hpi` the same way; the view configuration is preserved.
 

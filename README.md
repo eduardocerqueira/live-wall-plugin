@@ -79,7 +79,9 @@ controller looks like. Full details in [docs/demo.md](docs/demo.md).
    at all. The **Full screen** button on the view page does the same for a browser you are already
    sitting in front of.
 
-Requires **Jenkins 2.516.3 or newer**.
+Requires **Jenkins 2.555.3 or newer**, running on **Java 21 or newer**. (Jenkins 2.555
+itself still supports Java 17, but this plugin is compiled to Java 21 bytecode and will not load on
+a Java 17 controller.)
 
 ---
 

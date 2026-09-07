@@ -22,8 +22,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 17 is the floor for the 2.516 baseline; 21 is what most controllers now run.
-        jdk: [17, 21]
+        # The parent pom requires JDK 21 or newer to *build*, whatever bytecode level the
+        # plugin targets, so 17 is not a valid build JDK. These mirror the Jenkinsfile, and
+        # ci.jenkins.io accepts only these two.
+        jdk: [21, 25]
     steps:
       - uses: actions/checkout@v7
 

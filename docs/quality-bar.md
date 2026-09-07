@@ -30,8 +30,8 @@ it is a claim this repository can actually stand behind.
 ### Full tree — reported loudly, but not blocking
 
 The above plus `provided` and `test` scope: Jenkins core, and the libraries core brings with it —
-Jetty, Spring, and friends. At the current baseline that is 133 components carrying **38 known
-vulnerabilities** (1 critical, 14 high, 19 medium, 4 low), 17 of them in `jenkins-core` itself.
+Jetty, Spring, and friends. At the current baseline that is 133 components carrying **11 known
+vulnerabilities** (0 critical, 2 high, 6 medium, 3 low).
 
 None of that is shipped by this plugin. `provided` means precisely "the controller supplies this at
 runtime": your Jenkins already has these libraries, at whatever versions your Jenkins ships, whether
@@ -44,11 +44,14 @@ decoration. So it is reported in full on every run, summarised in the job output
 scanning, and raised as an issue by the weekly run. It is never hidden. It just does not block a
 change it has nothing to do with.
 
-It is still a real signal: it says *the Jenkins baseline in `pom.xml` is getting old*. Moving
-`jenkins.baseline` from `2.516` to `2.555` takes those 38 findings down to 18 and removes the
-critical one. That has not been done because a lower baseline installs on more controllers, and the
-findings belong to the controller either way — but it is the lever, and it is worth pulling when the
-compatibility cost is acceptable.
+It is still a real signal: it says *the Jenkins baseline in `pom.xml` is getting old*, and moving
+that baseline is the lever. It has been pulled once already: 2.516.3 carried 38 findings including a
+critical one, and 2.555.3 carries 11 with none critical. If the count climbs again, check what the
+next recommended baseline would clear before reaching for anything else — `2.568.1` measured at 8
+when this was last checked.
+
+The baseline is a floor, not a pin. It sets the oldest Jenkins the plugin installs on; an
+administrator running something newer gets their own newer libraries at runtime regardless.
 
 ## Why the scan also runs on a schedule
 
