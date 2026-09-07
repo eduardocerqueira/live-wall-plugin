@@ -43,7 +43,10 @@
   </scm>
 
   <properties>
-    <revision>1.0</revision>
+    <!-- Releases override this with -Drevision=<version> -Dchangelist=, so this value only names
+         local snapshot builds. Kept ahead of the last release so a development build never claims
+         to be a version that has already shipped. -->
+    <revision>1.1</revision>
     <changelist>-SNAPSHOT</changelist>
     <gitHubRepo>eduardocerqueira/jenkins-live-wall</gitHubRepo>
 
