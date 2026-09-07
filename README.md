@@ -11,6 +11,13 @@ the corner of the office.**
 ./scripts/demo.sh          # a local Jenkins, this plugin, and 20 sample jobs — in one command
 ```
 
+![A Live Wall of hexagonal tiles filling the screen. Three jobs building at the top left carry
+moving stripes; the rest are green, amber and red, with a header counting them and a
+clock.](docs/images/wall-hexagon.png)
+
+*Hexagons interlocked into a honeycomb. Jobs building right now sort to the top left, and the
+striped fill means Jenkins has no duration estimate to draw a progress bar from yet.*
+
 ---
 
 ## Why
@@ -40,6 +47,12 @@ including ones you invent.
 
 A building job fills up in step with its estimated duration, and falls back to indeterminate stripes
 the moment it overruns that estimate. The animation never lies about how far along a build is.
+
+![The same wall drawn as rounded rectangles with a small gap between them, every job legible from a
+distance.](docs/images/wall-rounded.png)
+
+*The same jobs as rounded rectangles. Ten shapes, six palettes, and an adjustable gap — the default
+is zero, so the tiles meet and the wall reads as one surface.*
 
 ---
 
@@ -92,7 +105,12 @@ type on:
 …/view/pipelines/wall?palette=neon&shape=octagon&refresh=10&header=0
 ```
 
-The view page also has a preview bar with drop-downs, against your real jobs.
+The view page also has a preview bar: drop-downs for palette, shape, animation, packing and order,
+and sliders for the gap and the separator, all applied to your real jobs as you change them. Nothing
+there is saved — it is for finding a look before committing it under **Configure**.
+
+![The Live Wall view inside Jenkins, with a row of preview controls above the wall: palette, shape,
+animation, packing, order, and sliders for gap and separator.](docs/images/view-page.png)
 
 Every setting is documented in **[docs/configuration.md](docs/configuration.md)**.
 

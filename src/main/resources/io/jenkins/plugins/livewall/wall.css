@@ -716,7 +716,9 @@
 }
 
 .lw-preview-bar .jenkins-select__input {
-    max-width: 240px;
+    max-width: 260px;
+    /* Room for the native drop-down arrow, which otherwise sits on top of the last character. */
+    padding-inline-end: 2.2em;
 }
 
 .lw-field--slider input[type="range"] {
