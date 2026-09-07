@@ -4,8 +4,6 @@ changelog:
   exclude:
     labels:
       - skip-changelog
-    authors:
-      - dependabot
   categories:
     - title: Breaking changes
       labels: [breaking]

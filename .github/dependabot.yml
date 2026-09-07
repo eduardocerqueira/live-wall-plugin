@@ -1,0 +1,29 @@
+# Keeps dependencies current, which is the whole of this plugin's security story: it depends on
+# Jenkins core and nothing else, so "stay patched" means "keep the baseline and the tooling moving".
+# The Sunday CVE scan tells you when something needs attention; this is what does something about it.
+version: 2
+
+updates:
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    # One pull request for the routine bumps rather than five; anything with a CVE attached still
+    # comes through on its own so it is impossible to miss in a batch.
+    groups:
+      maven-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies]
+    groups:
+      actions:
+        patterns: ["*"]
