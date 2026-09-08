@@ -14,6 +14,7 @@
 - [ ] No inline JavaScript in Jelly, and no `innerHTML` anywhere near a job name
 - [ ] `SHAPE_INSET` in `wall.js` still matches `--lw-text-inset` in `wall.css` (only if you touched shapes)
 - [ ] Docs updated if a setting was added, removed or renamed
+- [ ] **Labelled.** The label decides the changelog section *and* whether this ships at all — see [docs/releasing.md](../docs/releasing.md)
 
 ## Checked on a real screen
 

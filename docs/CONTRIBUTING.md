@@ -51,10 +51,11 @@ our four deploy jobs is the broken one from the kitchen" leads somewhere; "add t
    thing you changed at a realistic job count, then say in the pull request what you checked it on.
    Screenshots are very welcome.
 6. Open the pull request. The template has a short checklist; it is the same list as above.
-7. CI runs the tests on JDK 17 and 21 and runs the CVE scan. Both must be green.
-
-Label your pull request (`enhancement`, `bug`, `palette`, `shape`, `accessibility`,
-`documentation`, …) — the release changelog is grouped by those labels.
+7. CI runs the tests on JDK 21 and 25 and runs the CVE scan. Both must be green.
+8. **Label the pull request.** This is not cosmetic: the label decides both which section of the
+   changelog the change lands in *and whether a release happens at all*. See
+   [releasing.md](releasing.md) for the table, and pick a releasing label if the change is one
+   users should get.
 
 ## What this plugin is not
 

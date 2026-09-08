@@ -9,7 +9,7 @@ Both are enforced by CI. A pull request that fails either does not merge.
 
 | Gate | Workflow | Runs on | Passing means |
 | --- | --- | --- | --- |
-| Tests | [`ci.yml`](../.github/workflows/ci.yml) | Every PR, every push to `main`, JDK 17 and 21 | `mvn clean verify` is green on both — unit tests, Jenkins harness tests, Jelly validation, SpotBugs, formatting |
+| Tests | [`ci.yml`](../.github/workflows/ci.yml) | Every PR, every push to `main`, JDK 21 and 25 | `mvn clean verify` is green on both — unit tests, Jenkins harness tests, Jelly validation, SpotBugs, formatting |
 | Security | [`cve-scan.yml`](../.github/workflows/cve-scan.yml) | Every PR, every push to `main`, **and every Sunday at 06:00 UTC** | Zero known vulnerabilities, at every severity from `UNKNOWN` to `CRITICAL`, in everything the `.hpi` contains |
 
 ## Why the security scan is two scans

@@ -31,7 +31,10 @@ permissions:
 
 jobs:
   maven-cd:
-    uses: jenkins-infra/github-reusable-workflows/.github/workflows/maven-cd.yml@v1
+    # Pinned to a commit rather than the mutable @v1 tag: this is the workflow that receives the
+    # Artifactory credentials, so it is the one where a moved tag would matter most. Matches the
+    # pin in jenkinsci/archetypes. Renovate/Dependabot will offer updates via the comment.
+    uses: jenkins-infra/github-reusable-workflows/.github/workflows/maven-cd.yml@c2470861b1ad94810dc0d207b011e0b57bb91bbb # v1
     with:
       # Comment / uncomment the validate_only config appropriate to your preference:
       #

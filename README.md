@@ -155,6 +155,7 @@ Three pieces of that browser code are worth knowing about, all in
 | [Building, testing, installing](docs/building.md) | Development loop, running the tests, installing into your own Jenkins |
 | [Configuration](docs/configuration.md) | Every setting, URL parameters, JCasC, the JSON endpoint |
 | [Contributing](docs/CONTRIBUTING.md) | Issues, pull requests, adding palettes and shapes |
+| [Releasing](docs/releasing.md) | How continuous delivery works here, which labels ship a change, and why versions are not semver |
 | [The bar](docs/quality-bar.md) | All tests passing and zero shipped CVEs, for every pull request — and why the security scan is two scans |
 
 ---
