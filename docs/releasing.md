@@ -57,9 +57,10 @@ it wrong in the other direction and a docs typo goes out to every Jenkins in the
 
 Two consequences worth spelling out, because both have caught this repository already:
 
-- **An unlabelled pull request releases nothing.** It lands under "Other changes", which is not an
-  interesting category. Several early pull requests here went in unlabelled and are therefore in
-  `main` but in no release.
+- **An unlabelled pull request releases nothing**, and neither does one carrying only labels from
+  the "no" half of that table. An unlabelled change lands under "Other changes"; #1 was merged with
+  just `documentation`, and `bug` had to be added afterwards before it could ship. Either way the
+  change sits outside an interesting category, and nothing tells you so.
 - **A project-specific label is not enough on its own.** `accessibility` is a useful label for
   finding things in the issue tracker, but it means nothing to the shared configuration above. A
   change that improves accessibility and should ship needs `enhancement` (or `bug`) *as well*.
@@ -75,7 +76,7 @@ unlabelled and you now want them out — run the **cd** workflow manually from t
 there, as long as the `Jenkins` check on that commit passed.
 
 Tick **validate_only** to see what *would* be released, with the changelog it would carry, and no
-deployment. Worth doing before the first real release.
+deployment. Worth doing whenever a release is not routine.
 
 ## Version numbers
 
