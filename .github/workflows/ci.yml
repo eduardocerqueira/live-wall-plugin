@@ -37,7 +37,10 @@ jobs:
           cache: maven
 
       - name: Build, test and verify
-        run: mvn -B -ntp clean verify
+        # install rather than verify, because that is what ci.jenkins.io runs and therefore
+        # what actually gates a release. verify skips javadoc, which let a dangling {@link}
+        # sit undetected until the first build on the Jenkins CI.
+        run: mvn -B -ntp clean install
 
       - name: Publish test results
         if: always()

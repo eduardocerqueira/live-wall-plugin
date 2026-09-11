@@ -13,10 +13,7 @@ review comment reads far colder than it sounded when you wrote it.
 If someone's behaviour here is a problem, report it. You do not have to be the person it happened
 to, and you do not have to be sure it counts.
 
-- **This project** — email the maintainer, or
-  [open a private security advisory](https://github.com/eduardocerqueira/jenkins-live-wall/security/advisories/new)
-  if you would rather it not be visible to anyone else. It is not what advisories are for, but it is
-  a private channel that works today and it will be read.
+- **This project** — email the maintainer. It is a private channel, and it will be read.
 - **The Jenkins community** — the Jenkins project has its own
   [code of conduct contacts](https://www.jenkins.io/project/conduct/), and they handle reports
   independently of any individual plugin maintainer. Use them if the report concerns the maintainer,

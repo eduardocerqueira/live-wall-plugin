@@ -39,7 +39,7 @@ The plugin lands at **`target/live-wall.hpi`**.
 ## Run the tests
 
 ```bash
-mvn clean verify
+mvn clean install
 ```
 
 That runs everything the CI gate runs:
