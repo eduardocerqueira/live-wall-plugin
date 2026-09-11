@@ -1,3 +1,7 @@
+# The CodeQL scan the Jenkins project runs against plugins, using its own query pack. It is the same
+# scan the hosting process ran before this plugin was accepted, so keeping it green here is what
+# stops a regression being found by someone else later.
+#
 # More information about the Jenkins security scan can be found at the developer docs: https://www.jenkins.io/redirect/jenkins-security-scan/
 ---
 name: Jenkins Security Scan
