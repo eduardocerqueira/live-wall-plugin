@@ -446,7 +446,8 @@ public class LiveWallView extends ListView {
     }
 
     /**
-     * The custom colours that survived validation, keyed by {@link #CUSTOM_COLOR_KEYS}. Emitted as
+     * The custom colours that survived validation, keyed by {@code background}, {@code success},
+     * {@code failure}, {@code unstable}, {@code aborted} and {@code idle}. Emitted as
      * {@code data-color-*} attributes and applied by the browser as CSS custom properties, so an
      * unset colour simply falls through to the built-in palette.
      */

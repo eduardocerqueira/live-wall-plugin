@@ -9,7 +9,7 @@ Both are enforced by CI. A pull request that fails either does not merge.
 
 | Gate | Workflow | Runs on | Passing means |
 | --- | --- | --- | --- |
-| Tests | [`ci.yml`](../.github/workflows/ci.yml) | Every PR, every push to `main`, JDK 21 and 25 | `mvn clean verify` is green on both — unit tests, Jenkins harness tests, Jelly validation, SpotBugs, formatting |
+| Tests | [`ci.yml`](../.github/workflows/ci.yml) | Every PR, every push to `main`, JDK 21 and 25 | `mvn clean install` is green on both — unit tests, Jenkins harness tests, Jelly validation, SpotBugs, formatting, javadoc |
 | Security | [`cve-scan.yml`](../.github/workflows/cve-scan.yml) | Every PR, every push to `main`, **and every Sunday at 06:00 UTC** | Zero known vulnerabilities, at every severity from `UNKNOWN` to `CRITICAL`, in everything the `.hpi` contains |
 
 ## Why the security scan is two scans
@@ -86,8 +86,19 @@ gate, and both statements were true at once — because nothing was checking. It
 someone ran `spotless:apply` and it rewrote seven files nobody had touched.
 
 `pom.xml` now sets it to `false`, and the tree was reformatted once to match. Same rule as above: a
-gate that cannot fail is worse than no gate. If `mvn clean verify` complains about formatting,
+gate that cannot fail is worse than no gate. If `mvn clean install` complains about formatting,
 `mvn spotless:apply` fixes it.
+
+### And a third time: why `install` rather than `verify`
+
+This gate used to run `mvn clean verify`. ci.jenkins.io runs `mvn ... clean install`, and `install`
+runs javadoc where `verify` does not. So a dangling `{@link}` to a constant that had never existed
+sat in `LiveWallView` through every green build here, and failed on the very first build on the
+Jenkins CI — which is the check continuous delivery is gated on, so it would have blocked the first
+release.
+
+A gate weaker than the one that actually decides is the same failure as a gate that cannot fail: it
+is believed, and it is not the thing being believed. This one now runs what ci.jenkins.io runs.
 
 ## When zero is not reachable
 

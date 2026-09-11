@@ -8,7 +8,7 @@
 
 ## The bar (see docs/quality-bar.md)
 
-- [ ] `mvn clean verify` passes locally, and every test passes in CI
+- [ ] `mvn clean install` passes locally, and every test passes in CI
 - [ ] The CVE scan reports **zero** known vulnerabilities in what the plugin ships
 - [ ] New behaviour is covered by a test
 - [ ] No inline JavaScript in Jelly, and no `innerHTML` anywhere near a job name

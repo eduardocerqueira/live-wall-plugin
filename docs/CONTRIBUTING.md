@@ -44,7 +44,7 @@ our four deploy jobs is the broken one from the kitchen" leads somewhere; "add t
 3. Make the change, with a test. See [building.md](building.md) for the development loop.
 4. Run the gates locally:
    ```bash
-   mvn clean verify
+   mvn clean install
    mvn spotless:apply     # if formatting failed
    ```
 5. **Look at it on a real screen.** Run [`./scripts/demo.sh --jobs 150`](demo.md) and check the
