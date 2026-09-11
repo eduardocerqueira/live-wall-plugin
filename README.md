@@ -1,7 +1,7 @@
 # Live Wall
 
-[![CI](https://github.com/eduardocerqueira/jenkins-live-wall/actions/workflows/ci.yml/badge.svg)](https://github.com/eduardocerqueira/jenkins-live-wall/actions/workflows/ci.yml)
-[![CVE scan](https://github.com/eduardocerqueira/jenkins-live-wall/actions/workflows/cve-scan.yml/badge.svg)](https://github.com/eduardocerqueira/jenkins-live-wall/actions/workflows/cve-scan.yml)
+[![CI](https://github.com/jenkinsci/live-wall-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/jenkinsci/live-wall-plugin/actions/workflows/ci.yml)
+[![CVE scan](https://github.com/jenkinsci/live-wall-plugin/actions/workflows/cve-scan.yml/badge.svg)](https://github.com/jenkinsci/live-wall-plugin/actions/workflows/cve-scan.yml)
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue.svg)](LICENSE)
 
 **A Jenkins view that turns your jobs into a wall of big coloured tiles, built for the television in
