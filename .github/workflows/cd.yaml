@@ -1,7 +1,11 @@
-# Note: additional setup is required, see https://www.jenkins.io/redirect/continuous-delivery-of-plugins
+# Releases this plugin. docs/releasing.md explains what that means in practice: which pull request
+# labels ship a change, why the versions are generated rather than semver, and how to cut a release
+# deliberately rather than by merging.
 #
-# Please find additional hints for individual trigger use case
-# configuration options inline this script below.
+# The "additional setup" the archetype's note asks for is done: the permissions file carries
+# cd: enabled: true, MAVEN_USERNAME and MAVEN_TOKEN are provisioned, and ci.jenkins.io produces the
+# `Jenkins` check that the validate job below gates on. Background, if it is ever needed again:
+# https://www.jenkins.io/redirect/continuous-delivery-of-plugins
 #
 ---
 name: cd
