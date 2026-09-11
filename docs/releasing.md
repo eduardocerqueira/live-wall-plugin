@@ -118,6 +118,17 @@ It also requires the `Jenkins` check, which only exists once the repository is b
 ci.jenkins.io. Until both are in place the **cd** workflow will run and correctly decline to do
 anything.
 
+It also requires GitHub Actions to be **enabled on the repository**, which is not the default for a
+newly created one. While it is off nothing reaches a workflow: merging a labelled pull request
+releases nothing, and the badges at the top of the README stay grey, because a workflow badge
+renders from runs that never happened. The Actions tab says so — *"Workflows aren't being run on
+this repository"* — but nothing else does. In particular `gh api
+repos/OWNER/REPO/actions/permissions` reports `enabled: true` either way, so it is not a usable
+check; the honest test is whether the Actions tab shows any run whose event is not
+`workflow_dispatch`. Manual **Run workflow** dispatches keep working while it is off, which is what
+makes this easy to miss — the first release of this plugin was cut that way, by hand, with every
+automatic trigger dead.
+
 ## A caution about the release build
 
 The release build runs with `-Pquick-build`, which **skips the tests**. It does not re-verify what
