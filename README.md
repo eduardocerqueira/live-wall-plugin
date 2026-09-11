@@ -16,12 +16,12 @@ striped fill means Jenkins has no duration estimate to draw a progress bar from 
 
 ## See it running
 
-Forty seconds against a real controller: palettes and shapes changing on a live wall of 42 jobs,
-saving the look, and the kiosk page a television would be pointed at.
+A minute and a half against a real controller: the shape, animation, palette and ordering all
+changed on a live wall, then the kiosk page a television would be pointed at.
 
-https://github.com/user-attachments/assets/2a78178a-342e-46e0-a370-7cf2a3b915e9
+https://github.com/user-attachments/assets/e48af9e4-a600-454d-af14-13f24d65c157
 
-*No player above? [Watch the demo](https://github.com/user-attachments/assets/2a78178a-342e-46e0-a370-7cf2a3b915e9)
+*No player above? [Watch the demo](https://github.com/user-attachments/assets/e48af9e4-a600-454d-af14-13f24d65c157)
 — the inline video only renders on GitHub.*
 
 ---
