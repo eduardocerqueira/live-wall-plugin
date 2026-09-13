@@ -3,7 +3,7 @@
 ## What you need
 
 - **JDK 21 or newer**, to build and to run. This is inherited from the baseline rather than chosen
-  here: Jenkins core 2.555.3 is itself compiled to Java 21 bytecode, so every controller running
+  here: Jenkins core 2.568.3 is itself compiled to Java 21 bytecode, so every controller running
   that version is already on Java 21. Lowering `maven.compiler.release` would therefore widen
   nothing — there is no Java 17 controller able to run this baseline in the first place. CI builds
   on 21 and 25.
