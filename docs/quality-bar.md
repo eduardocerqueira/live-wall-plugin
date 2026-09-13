@@ -30,8 +30,9 @@ it is a claim this repository can actually stand behind.
 ### Full tree — reported loudly, but not blocking
 
 The above plus `provided` and `test` scope: Jenkins core, and the libraries core brings with it —
-Jetty, Spring, and friends. At the current baseline that is 133 components carrying **11 known
-vulnerabilities** (0 critical, 2 high, 6 medium, 3 low).
+Jetty, Spring, and friends. At the current baseline that is 133 components carrying **1 known
+vulnerability** (medium): CVE-2025-48924 in `commons-lang:commons-lang` 2.6, which core still brings
+along and for which the 2.x line has no fixed release.
 
 None of that is shipped by this plugin. `provided` means precisely "the controller supplies this at
 runtime": your Jenkins already has these libraries, at whatever versions your Jenkins ships, whether
@@ -45,10 +46,14 @@ scanning, and raised as an issue by the weekly run. It is never hidden. It just 
 change it has nothing to do with.
 
 It is still a real signal: it says *the Jenkins baseline in `pom.xml` is getting old*, and moving
-that baseline is the lever. It has been pulled once already: 2.516.3 carried 38 findings including a
-critical one, and 2.555.3 carries 11 with none critical. If the count climbs again, check what the
-next recommended baseline would clear before reaching for anything else — `2.568.1` measured at 8
-when this was last checked.
+that baseline is the lever. It has been pulled twice: 2.516.3 carried 38 findings including a
+critical one, 2.555.3 carried 11 with none critical, and 2.568.3 carries 1.
+
+Quote measurements with the version attached, as above, and re-measure rather than projecting. The
+figure this section carried before the second move — `2.568.1` "measured at 8" — was taken on a
+different patch release against an older vulnerability database, and the actual move landed at 1.
+The baseline now sits on the newest LTS line, so there is no further lever here: what remains is
+supplied by core and cleared by core.
 
 The baseline is a floor, not a pin. It sets the oldest Jenkins the plugin installs on; an
 administrator running something newer gets their own newer libraries at runtime regardless.
