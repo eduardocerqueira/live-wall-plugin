@@ -56,7 +56,7 @@
 
     <!-- Jenkins baseline. Keep roughly one year behind the newest LTS so the
          plugin installs on the controllers people actually run. -->
-    <jenkins.baseline>2.555</jenkins.baseline>
+    <jenkins.baseline>2.568</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
   </properties>
 
