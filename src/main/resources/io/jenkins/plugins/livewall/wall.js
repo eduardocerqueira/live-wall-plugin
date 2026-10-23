@@ -137,13 +137,6 @@
         }
     }
 
-    // Adjuncts can land either side of DOMContentLoaded depending on where Jenkins hoists them.
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", boot);
-    } else {
-        boot();
-    }
-
     function Wall(root) {
         this.root = root;
         this.grid = root.querySelector(".lw-grid");
@@ -1142,5 +1135,14 @@
             return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
         });
         return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    }
+
+    // Adjuncts can land either side of DOMContentLoaded depending on where Jenkins hoists them.
+    // This must stay last: when the document has already been parsed, boot() runs right here,
+    // and every Wall.prototype method and module-level value above has to exist by then.
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot);
+    } else {
+        boot();
     }
 })();

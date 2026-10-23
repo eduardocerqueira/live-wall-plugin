@@ -454,6 +454,27 @@ class LiveWallViewTest {
     }
 
     @Test
+    void wallJsBootsOnlyAfterEverythingItCallsIsDefined() throws Exception {
+        // When wall.js arrives after the document has been parsed, its readyState check calls boot()
+        // on the spot. If that check sits above the Wall.prototype assignments, boot() reaches
+        // Wall.prototype.start before it exists and throws -- a wall that never draws, for anyone
+        // loading the script late (an embedding page, a slow adjunct). The check has to stay last.
+        String js;
+        try (var in = getClass().getResourceAsStream("/io/jenkins/plugins/livewall/wall.js")) {
+            assertNotNull(in, "wall.js is on the classpath");
+            js = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        int boot = js.lastIndexOf("document.readyState === \"loading\"");
+        assertTrue(boot > 0, "the readyState check is still there");
+        int lastPrototype = js.lastIndexOf("Wall.prototype.");
+        int lastFunction = js.lastIndexOf("\n    function ");
+        int lastVar = js.lastIndexOf("\n    var ");
+        assertTrue(boot > lastPrototype, "boot runs after every Wall.prototype method is assigned");
+        assertTrue(boot > lastFunction, "and after every top-level function");
+        assertTrue(boot > lastVar, "and after every top-level value it reads");
+    }
+
+    @Test
     void configurationSurvivesARoundTripThroughTheForm(JenkinsRule r) throws Exception {
         LiveWallView view = createView(r, "wall");
         view.setPalette("colorsafe");
