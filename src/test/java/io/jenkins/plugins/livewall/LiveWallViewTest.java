@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
 import hudson.model.View;
@@ -117,13 +118,8 @@ class LiveWallViewTest {
 
         FreeStyleProject slow = r.createFreeStyleProject("aaa-slow");
         slow.getBuildersList().add(new org.jvnet.hudson.test.SleepBuilder(60_000));
-        slow.scheduleBuild2(0);
-
-        long deadline = System.currentTimeMillis() + 30_000;
-        while (!slow.isBuilding() && System.currentTimeMillis() < deadline) {
-            Thread.sleep(100);
-        }
-        assertTrue(slow.isBuilding(), "the slow job never started, so this test proves nothing");
+        FreeStyleBuild running = slow.scheduleBuild2(0).waitForStart();
+        assertTrue(running.isBuilding(), "the slow job never started, so this test proves nothing");
 
         try {
             LiveWallView view = createView(r, "wall");
@@ -137,7 +133,10 @@ class LiveWallViewTest {
             view.setSortBy("status");
             assertEquals(List.of("zzz-broken", "aaa-slow"), labels(view), "failed first reverses that");
         } finally {
-            slow.getLastBuild().doStop();
+            // doStop() only asks the build to abort. Wait until it has, or Jenkins is torn down
+            // while the build is still writing its log, and on a busy agent the teardown fails.
+            running.doStop();
+            r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(running));
         }
     }
 
